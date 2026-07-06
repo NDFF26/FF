@@ -82,6 +82,28 @@ function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFuncti
 // AUTHENTICATION ENDPOINTS
 // ----------------------------------------------------
 
+app.post('/api/sheets/bootstrap', async (req, res) => {
+  const { url } = req.body;
+  if (!url) {
+    return res.status(400).json({ error: 'Google Sheets URL is required.' });
+  }
+
+  try {
+    const success = await DBManager.pullFromGoogleSheets(url);
+    if (success) {
+      // Also save the URL in the restored settings to make sure it persists on the server
+      const db = DBManager.load();
+      db.settings = { ...db.settings, googleSheetsUrl: url } as any;
+      DBManager.save(db);
+      res.json({ success: true, message: 'Database successfully bootstrapped from Google Sheets.' });
+    } else {
+      res.status(400).json({ error: 'Failed to retrieve valid data from the provided Google Sheets URL.' });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post('/api/auth/login', (req, res) => {
   const { email, password } = req.body;
 

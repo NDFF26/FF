@@ -30,11 +30,21 @@ export default function App() {
   const verifySession = async () => {
     setAppLoading(true);
     
-    // Auto-pull latest data from Google Sheets sync if configured
-    try {
-      await ApiClient.pullFromGoogleSheets();
-    } catch (e) {
-      console.warn('Initial Google Sheets sync pull failed', e);
+    // Auto-bootstrap server from Google Sheets if we have the URL in localStorage
+    const savedUrl = ApiClient.getGoogleSheetsUrl();
+    if (savedUrl) {
+      try {
+        await ApiClient.bootstrapFromServer(savedUrl);
+      } catch (e) {
+        console.warn('Auto-bootstrap from Google Sheets failed', e);
+      }
+    } else {
+      // Auto-pull latest data from Google Sheets sync if configured
+      try {
+        await ApiClient.pullFromGoogleSheets();
+      } catch (e) {
+        console.warn('Initial Google Sheets sync pull failed', e);
+      }
     }
 
     const saved = ApiClient.getSavedUser();

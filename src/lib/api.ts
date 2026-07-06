@@ -606,4 +606,26 @@ export class ApiClient {
     }
     return false;
   }
+
+  static async bootstrapFromServer(url: string): Promise<boolean> {
+    if (isLocalMode) {
+      return this.pullFromGoogleSheets();
+    }
+    try {
+      const response = await fetch('/api/sheets/bootstrap', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url }),
+      });
+      if (response.ok) {
+        const result = await response.json();
+        return !!result.success;
+      }
+    } catch (err) {
+      console.error('Failed to bootstrap server from Google Sheets:', err);
+    }
+    return false;
+  }
 }

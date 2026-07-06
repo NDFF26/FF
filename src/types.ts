@@ -82,4 +82,5 @@ export interface SystemSettings {
   currency?: string;
   sessionTimeoutHours?: number;
   requireTwoFactor?: boolean;
+  googleSheetsUrl?: string;
 }

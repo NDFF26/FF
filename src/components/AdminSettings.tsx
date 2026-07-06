@@ -54,9 +54,13 @@ export default function AdminSettings() {
       setSessionTimeout(data.sessionTimeoutHours !== undefined && data.sessionTimeoutHours !== null ? data.sessionTimeoutHours : 24);
       setRequire2FA(!!data.requireTwoFactor);
 
-      // Load Google Sheets sync URL from LocalStorage
-      const savedSheetsUrl = ApiClient.getGoogleSheetsUrl() || '';
+      // Load Google Sheets sync URL from LocalStorage or server settings
+      const serverSheetsUrl = data.googleSheetsUrl || '';
+      const savedSheetsUrl = ApiClient.getGoogleSheetsUrl() || serverSheetsUrl;
       setGoogleSheetsUrlState(savedSheetsUrl);
+      if (serverSheetsUrl && !ApiClient.getGoogleSheetsUrl()) {
+        ApiClient.setGoogleSheetsUrl(serverSheetsUrl);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to fetch system configurations.');
     } finally {
