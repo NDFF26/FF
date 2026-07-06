@@ -276,7 +276,7 @@ function generateSeedData(): DBStructure {
 }
 
 export class DBManager {
-  private static load(): DBStructure {
+  static load(): DBStructure {
     if (!fs.existsSync(DB_FILE)) {
       const initial = generateSeedData();
       fs.writeFileSync(DB_FILE, JSON.stringify(initial, null, 2), 'utf-8');
@@ -293,8 +293,79 @@ export class DBManager {
     }
   }
 
-  private static save(data: DBStructure) {
+  static save(data: DBStructure) {
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
+
+    // Auto-background push to Google Sheets if configured in settings
+    const syncUrl = (data.settings as any)?.googleSheetsUrl;
+    if (syncUrl) {
+      fetch(syncUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ action: 'sync', db: data })
+      }).catch(err => {
+        console.warn('Google Sheets background sync failed on server:', err);
+      });
+    }
+  }
+
+  static importDatabase(db: DBStructure) {
+    if (db && typeof db === 'object') {
+      this.save(db);
+    }
+  }
+
+  static async pushToGoogleSheets(url: string): Promise<boolean> {
+    const db = this.load();
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ action: 'sync', db })
+      });
+      return response.ok;
+    } catch (err) {
+      console.error('Failed to push to Google Sheets on server:', err);
+      return false;
+    }
+  }
+
+  static async pullFromGoogleSheets(url: string): Promise<boolean> {
+    try {
+      const targetUrl = url.includes('?') ? `${url}&action=get` : `${url}?action=get`;
+      const response = await fetch(targetUrl);
+      if (!response.ok) return false;
+      const result = await response.json();
+      if (result && result.success && result.data) {
+        this.importDatabase(result.data);
+        return true;
+      }
+    } catch (err) {
+      console.error('Failed to pull from Google Sheets on server:', err);
+    }
+    return false;
+  }
+
+  static async pullFromGoogleSheetsOnStartup() {
+    try {
+      const db = this.load();
+      const syncUrl = (db.settings as any)?.googleSheetsUrl;
+      if (syncUrl) {
+        console.log('[Startup] Detected Google Sheets URL. Restoring database state...');
+        const success = await this.pullFromGoogleSheets(syncUrl);
+        if (success) {
+          console.log('[Startup] Successfully pulled latest database state from Google Sheets.');
+        } else {
+          console.warn('[Startup] Google Sheets auto-pull failed. Operating with local file cache.');
+        }
+      }
+    } catch (e) {
+      console.warn('[Startup] Error during Google Sheets auto-pull startup restore:', e);
+    }
   }
 
   // SYSTEM SETTINGS

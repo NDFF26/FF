@@ -405,7 +405,20 @@ export class MockDatabase {
 
     const netBalance = totalIncome - totalExpense;
 
-    const wallets = db.wallets.filter(w => w.userId === userId && w.accountId === accountId);
+    let wallets = db.wallets.filter(w => w.userId === userId && w.accountId === accountId);
+    if (wallets.length === 0) {
+      const newWallet = {
+        id: `w-${userId}-${accountId}-cash`,
+        userId: userId,
+        accountId: accountId,
+        name: accountId === 'personal' ? 'Cash' : 'Business Account',
+        isDefault: true
+      };
+      db.wallets.push(newWallet);
+      wallets = [newWallet];
+      this.save(db);
+    }
+
     const walletBalances = wallets.map(w => {
       let wIncome = 0;
       let wExpense = 0;
@@ -421,7 +434,34 @@ export class MockDatabase {
       };
     });
 
-    const categories = db.categories.filter(c => c.userId === userId && c.accountId === accountId);
+    let categories = db.categories.filter(c => c.userId === userId && c.accountId === accountId);
+    if (categories.length === 0) {
+      const defaults = accountId === 'personal' ? [
+        { name: 'Food & Dining', type: TransactionType.EXPENSE },
+        { name: 'Fuel & Travel', type: TransactionType.EXPENSE },
+        { name: 'Shopping', type: TransactionType.EXPENSE },
+        { name: 'Medical', type: TransactionType.EXPENSE },
+        { name: 'Salary', type: TransactionType.INCOME }
+      ] : [
+        { name: 'Client Sales', type: TransactionType.INCOME },
+        { name: 'Office Rent', type: TransactionType.EXPENSE },
+        { name: 'Salary', type: TransactionType.EXPENSE },
+        { name: 'Marketing', type: TransactionType.EXPENSE }
+      ];
+
+      defaults.forEach((cat, index) => {
+        db.categories.push({
+          id: `c-${userId}-${accountId}-${index}`,
+          userId: userId,
+          accountId: accountId,
+          name: cat.name,
+          type: cat.type as TransactionType
+        });
+      });
+      this.save(db);
+      categories = db.categories.filter(c => c.userId === userId && c.accountId === accountId);
+    }
+
     const categoryExpenses = categories
       .filter(c => c.type === TransactionType.EXPENSE)
       .map(c => {
@@ -531,12 +571,52 @@ export class MockDatabase {
 
   static getWallets(userId: string, accountId: 'personal' | 'professional'): Wallet[] {
     const db = this.load();
-    return db.wallets.filter(w => w.userId === userId && w.accountId === accountId);
+    let wallets = db.wallets.filter(w => w.userId === userId && w.accountId === accountId);
+    if (wallets.length === 0) {
+      const newWallet = {
+        id: `w-${userId}-${accountId}-cash`,
+        userId: userId,
+        accountId: accountId,
+        name: accountId === 'personal' ? 'Cash' : 'Business Account',
+        isDefault: true
+      };
+      db.wallets.push(newWallet);
+      this.save(db);
+      wallets = [newWallet];
+    }
+    return wallets;
   }
 
   static getCategories(userId: string, accountId: 'personal' | 'professional'): Category[] {
     const db = this.load();
-    return db.categories.filter(c => c.userId === userId && c.accountId === accountId);
+    let categories = db.categories.filter(c => c.userId === userId && c.accountId === accountId);
+    if (categories.length === 0) {
+      const defaults = accountId === 'personal' ? [
+        { name: 'Food & Dining', type: TransactionType.EXPENSE },
+        { name: 'Fuel & Travel', type: TransactionType.EXPENSE },
+        { name: 'Shopping', type: TransactionType.EXPENSE },
+        { name: 'Medical', type: TransactionType.EXPENSE },
+        { name: 'Salary', type: TransactionType.INCOME }
+      ] : [
+        { name: 'Client Sales', type: TransactionType.INCOME },
+        { name: 'Office Rent', type: TransactionType.EXPENSE },
+        { name: 'Salary', type: TransactionType.EXPENSE },
+        { name: 'Marketing', type: TransactionType.EXPENSE }
+      ];
+
+      defaults.forEach((cat, index) => {
+        db.categories.push({
+          id: `c-${userId}-${accountId}-${index}`,
+          userId: userId,
+          accountId: accountId,
+          name: cat.name,
+          type: cat.type as TransactionType
+        });
+      });
+      this.save(db);
+      categories = db.categories.filter(c => c.userId === userId && c.accountId === accountId);
+    }
+    return categories;
   }
 
   static getTransactions(
@@ -864,6 +944,30 @@ export class MockDatabase {
     };
 
     db.users.push(newUser);
+
+    // Create default categories for this user automatically to avoid empty accounts!
+    const basicCategories = [
+      { name: 'Food & Dining', type: TransactionType.EXPENSE, accountId: 'personal' },
+      { name: 'Fuel & Travel', type: TransactionType.EXPENSE, accountId: 'personal' },
+      { name: 'Shopping', type: TransactionType.EXPENSE, accountId: 'personal' },
+      { name: 'Medical', type: TransactionType.EXPENSE, accountId: 'personal' },
+      { name: 'Salary', type: TransactionType.INCOME, accountId: 'personal' },
+      
+      { name: 'Client Sales', type: TransactionType.INCOME, accountId: 'professional' },
+      { name: 'Office Rent', type: TransactionType.EXPENSE, accountId: 'professional' },
+      { name: 'Salary', type: TransactionType.EXPENSE, accountId: 'professional' },
+      { name: 'Marketing', type: TransactionType.EXPENSE, accountId: 'professional' },
+    ];
+
+    basicCategories.forEach((cat, index) => {
+      db.categories.push({
+        id: `c-${newUser.id}-${cat.accountId}-${index}`,
+        userId: newUser.id,
+        accountId: cat.accountId as 'personal' | 'professional',
+        name: cat.name,
+        type: cat.type as TransactionType
+      });
+    });
 
     db.wallets.push({
       id: `w-${newUser.id}-p-cash`,

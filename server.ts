@@ -630,6 +630,50 @@ app.delete('/api/admin/users/:id', requireAuth, requireAdmin, (req: Authenticate
   }
 });
 
+app.post('/api/admin/sheets/push', requireAuth, requireAdmin, async (req: AuthenticatedRequest, res) => {
+  const { url } = req.body;
+  if (!url) {
+    return res.status(400).json({ error: 'Google Sheets URL is required.' });
+  }
+
+  try {
+    const db = DBManager.load();
+    db.settings = { ...db.settings, googleSheetsUrl: url } as any;
+    DBManager.save(db);
+
+    const success = await DBManager.pushToGoogleSheets(url);
+    if (success) {
+      res.json({ success: true });
+    } else {
+      res.status(500).json({ error: 'Failed to push server database to Google Sheets.' });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/admin/sheets/pull', requireAuth, requireAdmin, async (req: AuthenticatedRequest, res) => {
+  const { url } = req.body;
+  if (!url) {
+    return res.status(400).json({ error: 'Google Sheets URL is required.' });
+  }
+
+  try {
+    const db = DBManager.load();
+    db.settings = { ...db.settings, googleSheetsUrl: url } as any;
+    DBManager.save(db);
+
+    const success = await DBManager.pullFromGoogleSheets(url);
+    if (success) {
+      res.json({ success: true });
+    } else {
+      res.status(500).json({ error: 'Failed to pull Google Sheets data onto server.' });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post('/api/admin/factory-reset', requireAuth, requireAdmin, (req: AuthenticatedRequest, res) => {
   try {
     DBManager.factoryReset({ id: req.user!.id, email: req.user!.email });
@@ -768,6 +812,9 @@ async function startServer() {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
+
+  // Auto-restore database state from Google Sheets on server startup if configured
+  await DBManager.pullFromGoogleSheetsOnStartup();
 
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
