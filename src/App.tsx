@@ -52,6 +52,9 @@ export default function App() {
       try {
         const verifiedUser = await ApiClient.getMe();
         setUser(verifiedUser);
+        if (verifiedUser.googleSheetsUrl) {
+          ApiClient.setGoogleSheetsUrl(verifiedUser.googleSheetsUrl);
+        }
         setActiveAccount(ApiClient.getActiveAccount());
         // Auto routing depending on role
         if (verifiedUser.role === UserRole.ADMIN) {
@@ -121,6 +124,9 @@ export default function App() {
 
   const handleLoginSuccess = (loggedInUser: Omit<User, 'passwordHash'>) => {
     setUser(loggedInUser);
+    if (loggedInUser.googleSheetsUrl) {
+      ApiClient.setGoogleSheetsUrl(loggedInUser.googleSheetsUrl);
+    }
     setActiveAccount('personal');
     if (loggedInUser.role === UserRole.ADMIN) {
       setActiveTab('admin-dashboard');

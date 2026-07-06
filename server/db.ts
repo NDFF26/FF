@@ -301,8 +301,8 @@ export class DBManager {
     const url = (db.settings as any)?.googleSheetsUrl || process.env.GOOGLE_SHEETS_URL;
     if (!url) return undefined;
     const trimmed = url.trim();
-    if (!trimmed.startsWith('https://script.google.com/')) {
-      console.log(`[Sync URL Check] Configured URL is not a Google Apps Script Web App URL. Skipping sync. (URL: "${trimmed}")`);
+    if (trimmed.includes('docs.google.com/spreadsheets')) {
+      console.log(`[Sync URL Check] Configured URL is a standard Google Spreadsheet. Skipping sync. (URL: "${trimmed}")`);
       return undefined;
     }
     return trimmed;

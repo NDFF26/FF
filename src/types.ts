@@ -32,6 +32,7 @@ export interface User {
   status: UserStatus;
   role: UserRole;
   createdDate: string;
+  googleSheetsUrl?: string;
 }
 
 export interface Wallet {

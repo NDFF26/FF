@@ -158,7 +158,8 @@ app.post('/api/auth/login', async (req, res) => {
       name: user.name,
       displayName: user.displayName,
       role: user.role,
-      status: user.status
+      status: user.status,
+      googleSheetsUrl: DBManager.getSyncUrl()
     }
   });
 });
@@ -199,7 +200,8 @@ app.get('/api/auth/me', requireAuth, async (req: AuthenticatedRequest, res) => {
     name: fullUser.name,
     displayName: fullUser.displayName,
     role: fullUser.role,
-    status: fullUser.status
+    status: fullUser.status,
+    googleSheetsUrl: DBManager.getSyncUrl()
   });
 });
 
