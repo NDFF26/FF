@@ -42,7 +42,8 @@ const DEFAULT_SETTINGS: SystemSettings = {
   allowUserRegistration: false,
   maintenanceMode: false,
   defaultCurrency: 'INR',
-  backupFrequency: 'Daily'
+  backupFrequency: 'Daily',
+  googleSheetsUrl: 'https://script.google.com/macros/s/AKfycbxkSZsrgVBi3Sj5t3sOXfnKfgo-ML9qx-X93_7Lfc-y1htGOPJ6jeWKYRnH5at4Ck0/exec'
 };
 
 function generateSeedData(): DBStructure {
@@ -305,7 +306,7 @@ export class MockDatabase {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
       
       // Auto-background push to Google Sheets if configured
-      const syncUrl = localStorage.getItem('ff_google_sheets_sync_url');
+      const syncUrl = localStorage.getItem('ff_google_sheets_sync_url') || 'https://script.google.com/macros/s/AKfycbxkSZsrgVBi3Sj5t3sOXfnKfgo-ML9qx-X93_7Lfc-y1htGOPJ6jeWKYRnH5at4Ck0/exec';
       if (syncUrl) {
         fetch(syncUrl, {
           method: 'POST',
@@ -323,7 +324,7 @@ export class MockDatabase {
 
   static importDatabase(db: DBStructure) {
     if (db && typeof db === 'object') {
-      const syncUrl = typeof window !== 'undefined' ? localStorage.getItem('ff_google_sheets_sync_url') : null;
+      const syncUrl = (typeof window !== 'undefined' ? localStorage.getItem('ff_google_sheets_sync_url') : null) || 'https://script.google.com/macros/s/AKfycbxkSZsrgVBi3Sj5t3sOXfnKfgo-ML9qx-X93_7Lfc-y1htGOPJ6jeWKYRnH5at4Ck0/exec';
       if (syncUrl) {
         if (!db.settings) {
           db.settings = {

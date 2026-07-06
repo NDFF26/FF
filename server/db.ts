@@ -39,7 +39,8 @@ const DEFAULT_SETTINGS: SystemSettings = {
   allowUserRegistration: false,
   maintenanceMode: false,
   defaultCurrency: 'INR',
-  backupFrequency: 'Daily'
+  backupFrequency: 'Daily',
+  googleSheetsUrl: 'https://script.google.com/macros/s/AKfycbxkSZsrgVBi3Sj5t3sOXfnKfgo-ML9qx-X93_7Lfc-y1htGOPJ6jeWKYRnH5at4Ck0/exec'
 };
 
 // Seed initial data
@@ -298,7 +299,7 @@ export class DBManager {
 
   static getSyncUrl(): string | undefined {
     const db = this.load();
-    const url = (db.settings as any)?.googleSheetsUrl || process.env.GOOGLE_SHEETS_URL;
+    const url = (db.settings as any)?.googleSheetsUrl || process.env.GOOGLE_SHEETS_URL || 'https://script.google.com/macros/s/AKfycbxkSZsrgVBi3Sj5t3sOXfnKfgo-ML9qx-X93_7Lfc-y1htGOPJ6jeWKYRnH5at4Ck0/exec';
     if (!url) return undefined;
     const trimmed = url.trim();
     if (trimmed.includes('docs.google.com/spreadsheets')) {

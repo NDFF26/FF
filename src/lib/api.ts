@@ -537,7 +537,7 @@ export class ApiClient {
   // Google Sheets Cloud Sync Methods
   static getGoogleSheetsUrl(): string | null {
     if (typeof window === 'undefined') return null;
-    return localStorage.getItem('ff_google_sheets_sync_url');
+    return localStorage.getItem('ff_google_sheets_sync_url') || 'https://script.google.com/macros/s/AKfycbxkSZsrgVBi3Sj5t3sOXfnKfgo-ML9qx-X93_7Lfc-y1htGOPJ6jeWKYRnH5at4Ck0/exec';
   }
 
   static setGoogleSheetsUrl(url: string | null) {
