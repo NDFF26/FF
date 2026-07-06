@@ -178,8 +178,6 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             onClick={() => setShowSyncForm(!showSyncForm)}
             className="w-full flex items-center justify-between text-xs font-bold text-gray-500 hover:text-gray-700 transition-colors"
           >
-            <span>🔗 DEVICE CLOUD SYNC CONFIGURATION</span>
-            <span>{showSyncForm ? 'Hide' : 'Show'}</span>
           </button>
 
           {showSyncForm && (
