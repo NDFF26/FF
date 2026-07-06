@@ -1,0 +1,6 @@
+{
+  "name": "FinanceFlow",
+  "description": "A scalable, secure, and modular personal and professional finance tracker.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
