@@ -31,7 +31,15 @@ export default function App() {
     setAppLoading(true);
     
     // Auto-bootstrap server from Google Sheets if we have the URL in localStorage
-    const savedUrl = ApiClient.getGoogleSheetsUrl();
+    let savedUrl = ApiClient.getGoogleSheetsUrl();
+    if (!savedUrl) {
+      const serverUrl = await ApiClient.getSyncUrlFromServer();
+      if (serverUrl) {
+        ApiClient.setGoogleSheetsUrl(serverUrl);
+        savedUrl = serverUrl;
+      }
+    }
+
     if (savedUrl) {
       try {
         await ApiClient.bootstrapFromServer(savedUrl);

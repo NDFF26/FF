@@ -323,6 +323,20 @@ export class MockDatabase {
 
   static importDatabase(db: DBStructure) {
     if (db && typeof db === 'object') {
+      const syncUrl = typeof window !== 'undefined' ? localStorage.getItem('ff_google_sheets_sync_url') : null;
+      if (syncUrl) {
+        if (!db.settings) {
+          db.settings = {
+            allowUserRegistration: true,
+            maintenanceMode: false,
+            defaultCurrency: 'USD',
+            backupFrequency: 'daily',
+            googleSheetsUrl: syncUrl
+          };
+        } else {
+          db.settings.googleSheetsUrl = syncUrl;
+        }
+      }
       this.save(db);
     }
   }

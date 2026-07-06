@@ -328,6 +328,20 @@ export class DBManager {
 
   static importDatabase(db: DBStructure) {
     if (db && typeof db === 'object') {
+      const currentSyncUrl = this.getSyncUrl();
+      if (currentSyncUrl) {
+        if (!db.settings) {
+          db.settings = {
+            allowUserRegistration: true,
+            maintenanceMode: false,
+            defaultCurrency: 'USD',
+            backupFrequency: 'daily',
+            googleSheetsUrl: currentSyncUrl
+          };
+        } else {
+          db.settings.googleSheetsUrl = currentSyncUrl;
+        }
+      }
       this.save(db);
     }
   }

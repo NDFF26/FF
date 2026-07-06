@@ -549,6 +549,17 @@ export class ApiClient {
     }
   }
 
+  static async getSyncUrlFromServer(): Promise<string | null> {
+    if (isLocalMode) return null;
+    try {
+      const data = await this.request<{ googleSheetsUrl: string | null }>('/api/sheets/sync-url');
+      return data.googleSheetsUrl;
+    } catch (e) {
+      console.warn('Failed to fetch sync URL from server', e);
+      return null;
+    }
+  }
+
   static async pushToGoogleSheets(): Promise<void> {
     const url = this.getGoogleSheetsUrl();
     if (!url) throw new Error('No Google Sheets Sync URL configured.');

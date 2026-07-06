@@ -104,6 +104,15 @@ app.post('/api/sheets/bootstrap', async (req, res) => {
   }
 });
 
+app.get('/api/sheets/sync-url', (req, res) => {
+  try {
+    const url = DBManager.getSyncUrl();
+    res.json({ googleSheetsUrl: url || null });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
 
