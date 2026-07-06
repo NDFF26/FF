@@ -298,7 +298,14 @@ export class DBManager {
 
   static getSyncUrl(): string | undefined {
     const db = this.load();
-    return (db.settings as any)?.googleSheetsUrl || process.env.GOOGLE_SHEETS_URL;
+    const url = (db.settings as any)?.googleSheetsUrl || process.env.GOOGLE_SHEETS_URL;
+    if (!url) return undefined;
+    const trimmed = url.trim();
+    if (!trimmed.startsWith('https://script.google.com/')) {
+      console.log(`[Sync URL Check] Configured URL is not a Google Apps Script Web App URL. Skipping sync. (URL: "${trimmed}")`);
+      return undefined;
+    }
+    return trimmed;
   }
 
   static save(data: DBStructure) {
@@ -351,16 +358,24 @@ export class DBManager {
 
     try {
       const targetUrl = url.includes('?') ? `${url}&action=get` : `${url}?action=get`;
+      console.log(`[Sync Pull] Fetching from targetUrl: "${targetUrl}"`);
       const response = await fetch(targetUrl);
-      if (!response.ok) return false;
+      console.log(`[Sync Pull] Response status: ${response.status} (${response.statusText})`);
+      if (!response.ok) {
+        console.warn(`[Sync Pull] Response not OK: ${response.status}`);
+        return false;
+      }
       const result = await response.json();
+      console.log(`[Sync Pull] Response JSON success: ${result?.success}`);
       if (result && result.success && result.data) {
         this.lastPullTime = now;
         this.importDatabase(result.data);
         return true;
+      } else {
+        console.warn(`[Sync Pull] Response format invalid or success=false:`, JSON.stringify(result));
       }
-    } catch (err) {
-      console.error('Failed to pull from Google Sheets on server:', err);
+    } catch (err: any) {
+      console.error('Failed to pull from Google Sheets on server. Error details:', err?.message || err, err?.stack || '');
     }
     return false;
   }

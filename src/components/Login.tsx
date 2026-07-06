@@ -170,8 +170,8 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           </div>
         </form>
 
-        {/* Optional Google Sheets Cloud Sync Settings Card */}
-        <div id="login-sync-container" className="mt-6 pt-6 border-t border-gray-100 space-y-3">
+        {/* Optional Google Sheets Cloud Sync Settings Card - Hidden from UI as requested */}
+        <div id="login-sync-container" className="hidden mt-6 pt-6 border-t border-gray-100 space-y-3">
           <button
             id="login-sync-toggle"
             type="button"
