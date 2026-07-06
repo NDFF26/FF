@@ -29,6 +29,14 @@ export default function App() {
   // Authenticate user session on load
   const verifySession = async () => {
     setAppLoading(true);
+    
+    // Auto-pull latest data from Google Sheets sync if configured
+    try {
+      await ApiClient.pullFromGoogleSheets();
+    } catch (e) {
+      console.warn('Initial Google Sheets sync pull failed', e);
+    }
+
     const saved = ApiClient.getSavedUser();
     if (saved) {
       try {

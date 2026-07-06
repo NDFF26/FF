@@ -31,6 +31,12 @@ export default function AdminSettings() {
   const [resetError, setResetError] = useState<string | null>(null);
   const [resetSuccess, setResetSuccess] = useState(false);
 
+  // Google Sheets Cloud Sync states
+  const [googleSheetsUrl, setGoogleSheetsUrlState] = useState('');
+  const [syncingSheets, setSyncingSheets] = useState(false);
+  const [sheetsSuccess, setSheetsSuccess] = useState<string | null>(null);
+  const [sheetsError, setSheetsError] = useState<string | null>(null);
+
   // Form Fields
   const [currency, setCurrency] = useState('INR');
   const [allowRegistration, setAllowRegistration] = useState(false);
@@ -47,6 +53,10 @@ export default function AdminSettings() {
       setAllowRegistration(!!data.allowUserRegistration);
       setSessionTimeout(data.sessionTimeoutHours !== undefined && data.sessionTimeoutHours !== null ? data.sessionTimeoutHours : 24);
       setRequire2FA(!!data.requireTwoFactor);
+
+      // Load Google Sheets sync URL from LocalStorage
+      const savedSheetsUrl = ApiClient.getGoogleSheetsUrl() || '';
+      setGoogleSheetsUrlState(savedSheetsUrl);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch system configurations.');
     } finally {
@@ -209,6 +219,128 @@ export default function AdminSettings() {
               </button>
             </div>
           </form>
+
+          {/* Google Sheets Cloud Sync */}
+          <div id="google-sheets-sync-card" className="mt-8 bg-white p-6 rounded-2xl border border-gray-100 shadow-xs space-y-4">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                🟢 Google Sheets Cloud Sync (Optional)
+              </h3>
+              <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                Connect your FinanceFlow application to a Google Sheet via Google Apps Script. This enables seamless, real-time synchronization of all transactions, wallets, and settings between your laptop and mobile phone completely for free—even when hosting on GitHub Pages!
+              </p>
+            </div>
+
+            {sheetsSuccess && (
+              <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-lg text-emerald-800 text-xs font-semibold">
+                {sheetsSuccess}
+              </div>
+            )}
+
+            {sheetsError && (
+              <div className="p-3 bg-red-50 border border-red-100 rounded-lg text-red-700 text-xs leading-relaxed whitespace-pre-wrap">
+                {sheetsError}
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <div>
+                <label htmlFor="sheets-url" className="block text-xs font-bold text-gray-700 mb-1">
+                  Google Apps Script Web App URL
+                </label>
+                <input
+                  id="sheets-url"
+                  type="url"
+                  placeholder="https://script.google.com/macros/s/.../exec"
+                  value={googleSheetsUrl}
+                  onChange={(e) => setGoogleSheetsUrlState(e.target.value)}
+                  className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-2.5 pt-2">
+                <button
+                  type="button"
+                  disabled={syncingSheets}
+                  onClick={async () => {
+                    if (!googleSheetsUrl.trim()) {
+                      setSheetsError('Please enter a valid Google Apps Script Web App URL first.');
+                      return;
+                    }
+                    setSyncingSheets(true);
+                    setSheetsSuccess(null);
+                    setSheetsError(null);
+                    try {
+                      // Save URL first
+                      ApiClient.setGoogleSheetsUrl(googleSheetsUrl.trim());
+                      
+                      // Push local database state to Google Sheets
+                      await ApiClient.pushToGoogleSheets();
+                      
+                      setSheetsSuccess('✅ Connection successful! Your data has been uploaded to Google Sheets. Backups will now save automatically on every change.');
+                    } catch (err: any) {
+                      setSheetsError(
+                        '❌ Connection failed. Please ensure your Google Apps Script is deployed as a Web App, authorized, and set to "Anyone" has access.\nDetail: ' + (err.message || err)
+                      );
+                    } finally {
+                      setSyncingSheets(false);
+                    }
+                  }}
+                  className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-md text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                >
+                  {syncingSheets ? <Loader2 className="animate-spin h-3.5 w-3.5" /> : 'Test & Upload to Sheets'}
+                </button>
+
+                <button
+                  type="button"
+                  disabled={syncingSheets}
+                  onClick={async () => {
+                    if (!googleSheetsUrl.trim()) {
+                      setSheetsError('Please enter a valid Google Apps Script Web App URL first.');
+                      return;
+                    }
+                    setSyncingSheets(true);
+                    setSheetsSuccess(null);
+                    setSheetsError(null);
+                    try {
+                      // Save URL first
+                      ApiClient.setGoogleSheetsUrl(googleSheetsUrl.trim());
+                      
+                      // Pull database state from Google Sheets
+                      const pulled = await ApiClient.pullFromGoogleSheets();
+                      if (pulled) {
+                        setSheetsSuccess('✅ Sync successful! Downloaded latest database state from Google Sheets. Reloading application...');
+                        setTimeout(() => window.location.reload(), 1500);
+                      } else {
+                        setSheetsError('❌ Could not download data. Ensure your sheet has been initialized or contains valid backup data.');
+                      }
+                    } catch (err: any) {
+                      setSheetsError('❌ Pull failed. Detail: ' + (err.message || err));
+                    } finally {
+                      setSyncingSheets(false);
+                    }
+                  }}
+                  className="px-3.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-md text-xs font-bold flex items-center gap-1.5 cursor-pointer border border-gray-200"
+                >
+                  Download from Sheets
+                </button>
+
+                {googleSheetsUrl && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      ApiClient.setGoogleSheetsUrl(null);
+                      setGoogleSheetsUrlState('');
+                      setSheetsSuccess('✅ Google Sheets sync disabled successfully.');
+                    }}
+                    className="px-3.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-md text-xs font-semibold cursor-pointer border border-red-200/50"
+                  >
+                    Disconnect Sync
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
 
           {/* Danger Zone: Factory Reset */}
           <div id="danger-zone-settings-card" className="mt-8 bg-red-50/40 p-6 rounded-2xl border border-red-200/60 space-y-4">

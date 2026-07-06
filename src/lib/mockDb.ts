@@ -249,7 +249,7 @@ function generateSeedData(): DBStructure {
 }
 
 export class MockDatabase {
-  private static load(): DBStructure {
+  static load(): DBStructure {
     if (typeof window === 'undefined') return generateSeedData();
     const stored = localStorage.getItem(STORAGE_KEY);
     if (!stored) {
@@ -258,7 +258,41 @@ export class MockDatabase {
       return data;
     }
     try {
-      return JSON.parse(stored);
+      const db = JSON.parse(stored);
+      // Perform automated migration from @ems.com to @ff.com if any exists
+      let migrated = false;
+      if (db.users) {
+        db.users.forEach((u: any) => {
+          if (u.email && u.email.endsWith('@ems.com')) {
+            u.email = u.email.replace('@ems.com', '@ff.com');
+            migrated = true;
+          }
+        });
+      }
+      if (db.auditLogs) {
+        db.auditLogs.forEach((log: any) => {
+          if (log.userEmail && log.userEmail.endsWith('@ems.com')) {
+            log.userEmail = log.userEmail.replace('@ems.com', '@ff.com');
+            migrated = true;
+          }
+          if (log.description && log.description.includes('@ems.com')) {
+            log.description = log.description.replace(/@ems.com/g, '@ff.com');
+            migrated = true;
+          }
+        });
+      }
+      if (db.transactions) {
+        db.transactions.forEach((tx: any) => {
+          if (tx.userEmail && tx.userEmail.endsWith('@ems.com')) {
+            tx.userEmail = tx.userEmail.replace('@ems.com', '@ff.com');
+            migrated = true;
+          }
+        });
+      }
+      if (migrated) {
+        this.save(db);
+      }
+      return db;
     } catch {
       const data = generateSeedData();
       this.save(data);
@@ -269,6 +303,27 @@ export class MockDatabase {
   private static save(db: DBStructure) {
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+      
+      // Auto-background push to Google Sheets if configured
+      const syncUrl = localStorage.getItem('ff_google_sheets_sync_url');
+      if (syncUrl) {
+        fetch(syncUrl, {
+          method: 'POST',
+          mode: 'no-cors', // Use no-cors to prevent pre-flight and CORS redirection blocks
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ action: 'sync', db })
+        }).catch(err => {
+          console.warn('Google Sheets background sync failed:', err);
+        });
+      }
+    }
+  }
+
+  static importDatabase(db: DBStructure) {
+    if (db && typeof db === 'object') {
+      this.save(db);
     }
   }
 

@@ -57,7 +57,12 @@ export class ApiClient {
     const userStr = localStorage.getItem(USER_KEY);
     if (!userStr) return null;
     try {
-      return JSON.parse(userStr);
+      const user = JSON.parse(userStr);
+      if (user && user.email && user.email.endsWith('@ems.com')) {
+        user.email = user.email.replace('@ems.com', '@ff.com');
+        localStorage.setItem(USER_KEY, JSON.stringify(user));
+      }
+      return user;
     } catch {
       return null;
     }
@@ -527,5 +532,54 @@ export class ApiClient {
       method: 'PUT',
       body: JSON.stringify(settings),
     });
+  }
+
+  // Google Sheets Cloud Sync Methods
+  static getGoogleSheetsUrl(): string | null {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('ff_google_sheets_sync_url');
+  }
+
+  static setGoogleSheetsUrl(url: string | null) {
+    if (typeof window === 'undefined') return;
+    if (url) {
+      localStorage.setItem('ff_google_sheets_sync_url', url);
+    } else {
+      localStorage.removeItem('ff_google_sheets_sync_url');
+    }
+  }
+
+  static async pushToGoogleSheets(): Promise<void> {
+    const url = this.getGoogleSheetsUrl();
+    if (!url) throw new Error('No Google Sheets Sync URL configured.');
+
+    const db = MockDatabase.load();
+    const response = await fetch(url, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'sync', db }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Sync failed with status: ' + response.status);
+    }
+  }
+
+  static async pullFromGoogleSheets(): Promise<boolean> {
+    const url = this.getGoogleSheetsUrl();
+    if (!url) return false;
+
+    try {
+      const targetUrl = url.includes('?') ? `${url}&action=get` : `${url}?action=get`;
+      const response = await fetch(targetUrl);
+      if (!response.ok) return false;
+      const result = await response.json();
+      if (result && result.success && result.data) {
+        MockDatabase.importDatabase(result.data);
+        return true;
+      }
+    } catch (err) {
+      console.error('Failed to pull from Google Sheets:', err);
+    }
+    return false;
   }
 }
