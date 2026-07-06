@@ -553,14 +553,26 @@ export class ApiClient {
     const url = this.getGoogleSheetsUrl();
     if (!url) throw new Error('No Google Sheets Sync URL configured.');
 
-    const db = MockDatabase.load();
-    const response = await fetch(url, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'sync', db }),
-    });
+    if (isLocalMode) {
+      const db = MockDatabase.load();
+      const response = await fetch(url, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'sync', db }),
+      });
 
-    if (!response.ok) {
-      throw new Error('Sync failed with status: ' + response.status);
+      if (!response.ok) {
+        throw new Error('Sync failed with status: ' + response.status);
+      }
+    } else {
+      const response = await fetch('/api/admin/sheets/push', {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ url }),
+      });
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.error || 'Server sync failed with status: ' + response.status);
+      }
     }
   }
 
@@ -569,13 +581,25 @@ export class ApiClient {
     if (!url) return false;
 
     try {
-      const targetUrl = url.includes('?') ? `${url}&action=get` : `${url}?action=get`;
-      const response = await fetch(targetUrl);
-      if (!response.ok) return false;
-      const result = await response.json();
-      if (result && result.success && result.data) {
-        MockDatabase.importDatabase(result.data);
-        return true;
+      if (isLocalMode) {
+        const targetUrl = url.includes('?') ? `${url}&action=get` : `${url}?action=get`;
+        const response = await fetch(targetUrl);
+        if (!response.ok) return false;
+        const result = await response.json();
+        if (result && result.success && result.data) {
+          MockDatabase.importDatabase(result.data);
+          return true;
+        }
+      } else {
+        const response = await fetch('/api/admin/sheets/pull', {
+          method: 'POST',
+          headers: this.getHeaders(),
+          body: JSON.stringify({ url }),
+        });
+        if (response.ok) {
+          const result = await response.json();
+          return !!result.success;
+        }
       }
     } catch (err) {
       console.error('Failed to pull from Google Sheets:', err);
