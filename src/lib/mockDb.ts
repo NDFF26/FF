@@ -715,12 +715,18 @@ export class MockDatabase {
     const db = this.load();
     return db.users
       .filter(u => u.id !== currentUserId && u.status === UserStatus.ACTIVE)
-      .map(u => ({
-        id: u.id,
-        email: u.email,
-        name: u.name,
-        displayName: u.displayName
-      }));
+      .map(u => {
+        const personalWallets = db.wallets.filter((w: any) => w.userId === u.id && w.accountId === 'personal');
+        const professionalWallets = db.wallets.filter((w: any) => w.userId === u.id && w.accountId === 'professional');
+        return {
+          id: u.id,
+          email: u.email,
+          name: u.name,
+          displayName: u.displayName,
+          personalWallets,
+          professionalWallets
+        };
+      });
   }
 
   static createSelfTransfer(

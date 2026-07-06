@@ -143,9 +143,9 @@ export default function DashboardView({ activeAccount }: DashboardViewProps) {
   useEffect(() => {
     const selectedTarget = transferTargets.find(t => t.id === destUserId);
     const targetWallets = selectedTarget 
-      ? (destAccountType === 'personal' ? selectedTarget.personalWallets : selectedTarget.professionalWallets)
+      ? (destAccountType === 'personal' ? (selectedTarget.personalWallets || []) : (selectedTarget.professionalWallets || []))
       : [];
-    if (targetWallets.length > 0) {
+    if (targetWallets && targetWallets.length > 0) {
       setDestWalletId(targetWallets[0].id);
     } else {
       setDestWalletId('');
@@ -824,17 +824,21 @@ export default function DashboardView({ activeAccount }: DashboardViewProps) {
                         onChange={(e) => setDestWalletId(e.target.value)}
                         className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
                       >
-                        {transferTargets.find(t => t.id === destUserId)
-                          ? (destAccountType === 'personal' 
-                              ? transferTargets.find(t => t.id === destUserId).personalWallets 
-                              : transferTargets.find(t => t.id === destUserId).professionalWallets
-                            ).map((w: any) => (
+                        {(() => {
+                          const target = transferTargets.find(t => t.id === destUserId);
+                          const walletsList = target 
+                            ? (destAccountType === 'personal' ? (target.personalWallets || []) : (target.professionalWallets || []))
+                            : [];
+                          return walletsList.length > 0 ? (
+                            walletsList.map((w: any) => (
                               <option key={w.id} value={w.id}>
                                 {w.name}
                               </option>
                             ))
-                          : <option value="" disabled>No wallets available</option>
-                        }
+                          ) : (
+                            <option value="" disabled>No wallets available</option>
+                          );
+                        })()}
                       </select>
                     </div>
                   </div>
