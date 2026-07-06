@@ -362,7 +362,7 @@ app.delete('/api/transactions/:id', requireAuth, (req: AuthenticatedRequest, res
 
 app.get('/api/users/transfer-targets', requireAuth, (req: AuthenticatedRequest, res) => {
   try {
-    const allUsers = DBManager.getUsers().filter(u => u.id !== req.user!.id && u.status === 'ACTIVE');
+    const allUsers = DBManager.getUsers().filter(u => u.id !== req.user!.id && u.status === 'ACTIVE' && u.role !== 'ADMIN');
     const db = (DBManager as any).load();
     
     const targets = allUsers.map(u => {

@@ -794,7 +794,7 @@ export class MockDatabase {
   static getTransferTargets(currentUserId: string): any[] {
     const db = this.load();
     return db.users
-      .filter(u => u.id !== currentUserId && u.status === UserStatus.ACTIVE)
+      .filter(u => u.id !== currentUserId && u.status === UserStatus.ACTIVE && u.role !== 'ADMIN')
       .map(u => {
         const personalWallets = db.wallets.filter((w: any) => w.userId === u.id && w.accountId === 'personal');
         const professionalWallets = db.wallets.filter((w: any) => w.userId === u.id && w.accountId === 'professional');
