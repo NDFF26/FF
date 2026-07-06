@@ -58,9 +58,19 @@ export default function DashboardView({ activeAccount }: DashboardViewProps) {
   const fetchTransferTargets = async () => {
     try {
       const targets = await ApiClient.getTransferTargets();
-      setTransferTargets(targets);
-      if (targets.length > 0) {
-        setDestUserId(targets[0].id);
+      const filtered = (targets || []).filter((t: any) => 
+        t.id !== 'u-admin' && 
+        t.email !== 'admin@ff.com' && 
+        t.email !== 'admin@ems.com' &&
+        t.displayName !== 'Administrator' &&
+        t.name !== 'System Admin' &&
+        t.role !== 'ADMIN'
+      );
+      setTransferTargets(filtered);
+      if (filtered.length > 0) {
+        setDestUserId(filtered[0].id);
+      } else {
+        setDestUserId('');
       }
     } catch (err: any) {
       console.error('Failed to load transfer targets:', err);
