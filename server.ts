@@ -104,11 +104,22 @@ app.post('/api/sheets/bootstrap', async (req, res) => {
   }
 });
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password are required.' });
+  }
+
+  // Force Google Sheets pull to guarantee we have the latest user credentials and status on the server
+  const syncUrl = DBManager.getSyncUrl();
+  if (syncUrl) {
+    try {
+      console.log('[Login Hook] Syncing database from Google Sheets...');
+      await DBManager.pullFromGoogleSheets(syncUrl, true); // Force pull
+    } catch (err) {
+      console.warn('[Login Hook] Google Sheets pull on login failed:', err);
+    }
   }
 
   const user = DBManager.findUserByEmail(email);
@@ -164,8 +175,18 @@ app.post('/api/auth/logout', requireAuth, (req: AuthenticatedRequest, res) => {
   res.json({ success: true });
 });
 
-app.get('/api/auth/me', requireAuth, (req: AuthenticatedRequest, res) => {
+app.get('/api/auth/me', requireAuth, async (req: AuthenticatedRequest, res) => {
   if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+
+  // Throttled background pull to keep the session perfectly synced
+  const syncUrl = DBManager.getSyncUrl();
+  if (syncUrl) {
+    try {
+      await DBManager.pullFromGoogleSheets(syncUrl);
+    } catch (err) {
+      console.warn('[Me Hook] Throttled Google Sheets pull failed:', err);
+    }
+  }
 
   const fullUser = DBManager.findUserByEmail(req.user.email);
   if (!fullUser) {

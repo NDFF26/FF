@@ -293,11 +293,19 @@ export class DBManager {
     }
   }
 
+  private static lastPullTime = 0;
+  private static PULL_THROTTLE_MS = 15000; // 15 seconds
+
+  static getSyncUrl(): string | undefined {
+    const db = this.load();
+    return (db.settings as any)?.googleSheetsUrl || process.env.GOOGLE_SHEETS_URL;
+  }
+
   static save(data: DBStructure) {
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
 
-    // Auto-background push to Google Sheets if configured in settings
-    const syncUrl = (data.settings as any)?.googleSheetsUrl;
+    // Auto-background push to Google Sheets if configured in settings or env fallback
+    const syncUrl = this.getSyncUrl();
     if (syncUrl) {
       fetch(syncUrl, {
         method: 'POST',
@@ -334,13 +342,20 @@ export class DBManager {
     }
   }
 
-  static async pullFromGoogleSheets(url: string): Promise<boolean> {
+  static async pullFromGoogleSheets(url: string, force = false): Promise<boolean> {
+    const now = Date.now();
+    if (!force && now - this.lastPullTime < this.PULL_THROTTLE_MS) {
+      console.log('[Sync] Pull bypassed due to rate throttle (15s limit).');
+      return true;
+    }
+
     try {
       const targetUrl = url.includes('?') ? `${url}&action=get` : `${url}?action=get`;
       const response = await fetch(targetUrl);
       if (!response.ok) return false;
       const result = await response.json();
       if (result && result.success && result.data) {
+        this.lastPullTime = now;
         this.importDatabase(result.data);
         return true;
       }
@@ -352,13 +367,33 @@ export class DBManager {
 
   static async pullFromGoogleSheetsOnStartup() {
     try {
-      const db = this.load();
-      const syncUrl = (db.settings as any)?.googleSheetsUrl;
+      const syncUrl = this.getSyncUrl();
       if (syncUrl) {
         console.log('[Startup] Detected Google Sheets URL. Restoring database state...');
-        const success = await this.pullFromGoogleSheets(syncUrl);
+        
+        let success = false;
+        const maxRetries = 5;
+        const delayMs = 2000;
+        
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          success = await this.pullFromGoogleSheets(syncUrl, true); // Force pull on startup
+          if (success) {
+            break;
+          }
+          if (attempt < maxRetries) {
+            console.warn(`[Startup] Google Sheets pull attempt ${attempt} failed. Retrying in ${delayMs / 1000}s...`);
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+          }
+        }
+
         if (success) {
           console.log('[Startup] Successfully pulled latest database state from Google Sheets.');
+          // Ensure it is saved back to db.settings in case it came from environment fallback
+          const db = this.load();
+          if ((db.settings as any)?.googleSheetsUrl !== syncUrl) {
+            db.settings = { ...db.settings, googleSheetsUrl: syncUrl } as any;
+            this.save(db);
+          }
         } else {
           console.warn('[Startup] Google Sheets auto-pull failed. Operating with local file cache.');
         }

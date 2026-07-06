@@ -19,6 +19,13 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   const [loading, setLoading] = useState(false);
   const [logoError, setLogoError] = useState(false);
 
+  // Cloud Sync setup states
+  const [showSyncForm, setShowSyncForm] = useState(false);
+  const [syncUrl, setSyncUrl] = useState(() => ApiClient.getGoogleSheetsUrl() || '');
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncSuccess, setSyncSuccess] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
@@ -36,6 +43,33 @@ export default function Login({ onLoginSuccess }: LoginProps) {
       setError(err.message || 'Invalid email or password.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSyncConnect = async () => {
+    if (!syncUrl.trim()) return;
+    setSyncLoading(true);
+    setSyncSuccess(null);
+    setSyncError(null);
+
+    try {
+      // 1. Save URL in client LocalStorage
+      ApiClient.setGoogleSheetsUrl(syncUrl.trim());
+
+      // 2. Trigger bootstrapping
+      const success = await ApiClient.bootstrapFromServer(syncUrl.trim());
+      if (success) {
+        setSyncSuccess('✅ Connected! Database has been successfully loaded from Google Sheets. You can now sign in using your accounts.');
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      } else {
+        setSyncError('❌ Connection failed. Ensure your Google Sheets Web App is active and authorized.');
+      }
+    } catch (err: any) {
+      setSyncError('❌ Sync connection failed. ' + (err.message || err));
+    } finally {
+      setSyncLoading(false);
     }
   };
 
@@ -135,6 +169,72 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             </button>
           </div>
         </form>
+
+        {/* Optional Google Sheets Cloud Sync Settings Card */}
+        <div id="login-sync-container" className="mt-6 pt-6 border-t border-gray-100 space-y-3">
+          <button
+            id="login-sync-toggle"
+            type="button"
+            onClick={() => setShowSyncForm(!showSyncForm)}
+            className="w-full flex items-center justify-between text-xs font-bold text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            <span>🔗 DEVICE CLOUD SYNC CONFIGURATION</span>
+            <span>{showSyncForm ? 'Hide' : 'Show'}</span>
+          </button>
+
+          {showSyncForm && (
+            <div id="login-sync-form" className="bg-gray-50 p-4 rounded-xl border border-gray-200/50 space-y-3 text-left">
+              <p className="text-[11px] text-gray-500 leading-relaxed">
+                Using a new device or restoring your data? Paste your Google Apps Script Web App URL below to instantly download and boot your full account, wallets, categories, and histories.
+              </p>
+              
+              <div>
+                <input
+                  id="sync-sheets-url"
+                  type="url"
+                  placeholder="https://script.google.com/macros/s/.../exec"
+                  value={syncUrl}
+                  onChange={(e) => {
+                    setSyncUrl(e.target.value);
+                    setSyncSuccess(null);
+                    setSyncError(null);
+                  }}
+                  className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white text-gray-900"
+                  disabled={syncLoading}
+                />
+              </div>
+
+              {syncSuccess && (
+                <div id="login-sync-success-alert" className="p-2.5 bg-emerald-50 border border-emerald-100 rounded-lg text-emerald-800 text-[11px] font-medium leading-relaxed">
+                  {syncSuccess}
+                </div>
+              )}
+
+              {syncError && (
+                <div id="login-sync-error-alert" className="p-2.5 bg-red-50 border border-red-100 rounded-lg text-red-700 text-[11px] font-medium leading-relaxed">
+                  {syncError}
+                </div>
+              )}
+
+              <button
+                id="login-sync-btn"
+                type="button"
+                disabled={syncLoading || !syncUrl.trim()}
+                onClick={handleSyncConnect}
+                className="w-full px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              >
+                {syncLoading ? (
+                  <>
+                    <Loader2 className="animate-spin h-3.5 w-3.5" />
+                    Connecting...
+                  </>
+                ) : (
+                  'Connect & Pull Database'
+                )}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
