@@ -78,7 +78,7 @@ export default function App() {
         ApiClient.logout().catch(() => {}).finally(() => {
           setUser(null);
           setActiveTab('dashboard');
-          alert('You have been automatically logged out due to 1 minute of inactivity (zero touch detected).');
+          alert('Session expired. Please log back in.');
         });
       }, TIMEOUT_DURATION);
     };
