@@ -63,6 +63,7 @@ export default function AdminUsersView() {
   // New Category form state
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryType, setNewCategoryType] = useState<TransactionType>(TransactionType.EXPENSE);
+  const [newCategoryTargetAmount, setNewCategoryTargetAmount] = useState<string>('');
   const [categorySubmitting, setCategorySubmitting] = useState(false);
 
   // Inline editing state
@@ -72,6 +73,7 @@ export default function AdminUsersView() {
 
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [editingCategoryName, setEditingCategoryName] = useState('');
+  const [editingCategoryTargetAmount, setEditingCategoryTargetAmount] = useState<string>('');
 
   // Custom Alert and Confirmation Modal States
   const [customAlert, setCustomAlert] = useState<{ title: string; message: string; type?: 'info' | 'error' | 'success' } | null>(null);
@@ -169,9 +171,11 @@ export default function AdminUsersView() {
       await ApiClient.addAdminUserCategory(profileUser.id, {
         name: newCategoryName.trim(),
         type: newCategoryType,
-        accountId: profileAccountType
+        accountId: profileAccountType,
+        targetAmount: newCategoryTargetAmount ? Number(newCategoryTargetAmount) : undefined
       });
       setNewCategoryName('');
+      setNewCategoryTargetAmount('');
       await loadUserProfileData(profileUser.id, profileAccountType);
     } catch (err: any) {
       setProfileError(err.message || 'Failed to add category.');
@@ -185,9 +189,11 @@ export default function AdminUsersView() {
     setProfileError(null);
     try {
       await ApiClient.updateAdminUserCategory(profileUser.id, categoryId, {
-        name: editingCategoryName.trim()
+        name: editingCategoryName.trim(),
+        targetAmount: editingCategoryTargetAmount ? Number(editingCategoryTargetAmount) : undefined
       });
       setEditingCategoryId(null);
+      setEditingCategoryTargetAmount('');
       await loadUserProfileData(profileUser.id, profileAccountType);
     } catch (err: any) {
       setProfileError(err.message || 'Failed to update category.');
@@ -912,14 +918,22 @@ export default function AdminUsersView() {
                     {/* Add Category Form */}
                     <form onSubmit={handleAddCategory} className="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-3">
                       <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Add Category</h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <input
                           id="new-category-name"
                           type="text"
                           required
-                          placeholder="E.g. Food, Client Project"
+                          placeholder={newCategoryType === TransactionType.EXPENSE ? "E.g. Food, Travel" : "E.g. Salary, Sales"}
                           value={newCategoryName}
                           onChange={(e) => setNewCategoryName(e.target.value)}
+                          className="block w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
+                        />
+                        <input
+                          id="new-category-target"
+                          type="number"
+                          placeholder={newCategoryType === TransactionType.EXPENSE ? "Limit Target ₹ (optional)" : "Income Goal ₹ (optional)"}
+                          value={newCategoryTargetAmount}
+                          onChange={(e) => setNewCategoryTargetAmount(e.target.value)}
                           className="block w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
                         />
                         <div className="flex items-center gap-2">
@@ -960,34 +974,50 @@ export default function AdminUsersView() {
                                 return (
                                   <div key={c.id} className="flex items-center justify-between p-2.5 bg-white border border-gray-100 rounded-lg hover:border-red-100 transition-colors shadow-2xs">
                                     {isEditing ? (
-                                      <div className="flex-1 flex gap-2">
+                                      <div className="flex-1 flex flex-col sm:flex-row gap-2">
                                         <input
                                           type="text"
                                           value={editingCategoryName}
                                           onChange={(e) => setEditingCategoryName(e.target.value)}
                                           className="flex-1 rounded-lg border border-gray-300 px-2 py-0.5 text-xs focus:border-indigo-500 focus:outline-none bg-white"
+                                          placeholder="Name"
                                         />
-                                        <button
-                                          onClick={() => handleUpdateCategory(c.id)}
-                                          className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold"
-                                        >
-                                          Save
-                                        </button>
-                                        <button
-                                          onClick={() => setEditingCategoryId(null)}
-                                          className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded text-[10px] font-semibold"
-                                        >
-                                          Cancel
-                                        </button>
+                                        <input
+                                          type="number"
+                                          value={editingCategoryTargetAmount}
+                                          onChange={(e) => setEditingCategoryTargetAmount(e.target.value)}
+                                          className="w-24 rounded-lg border border-gray-300 px-2 py-0.5 text-xs focus:border-indigo-500 focus:outline-none bg-white"
+                                          placeholder="Target ₹"
+                                        />
+                                        <div className="flex gap-1.5">
+                                          <button
+                                            onClick={() => handleUpdateCategory(c.id)}
+                                            className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold cursor-pointer"
+                                          >
+                                            Save
+                                          </button>
+                                          <button
+                                            onClick={() => setEditingCategoryId(null)}
+                                            className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded text-[10px] font-semibold cursor-pointer"
+                                          >
+                                            Cancel
+                                          </button>
+                                        </div>
                                       </div>
                                     ) : (
                                       <>
-                                        <span className="text-xs text-gray-800 font-medium">{c.name}</span>
+                                        <div className="flex flex-col">
+                                          <span className="text-xs text-gray-800 font-medium">{c.name}</span>
+                                          {c.targetAmount !== undefined && c.targetAmount > 0 && (
+                                            <span className="text-[10px] text-amber-600 font-medium">Target: ₹{c.targetAmount.toLocaleString()}</span>
+                                          )}
+                                        </div>
                                         <div className="flex gap-1.5">
                                           <button
                                             onClick={() => {
                                               setEditingCategoryId(c.id);
                                               setEditingCategoryName(c.name);
+                                              setEditingCategoryTargetAmount(c.targetAmount !== undefined ? String(c.targetAmount) : '');
                                             }}
                                             className="p-0.5 hover:bg-gray-50 text-gray-400 hover:text-indigo-600 rounded"
                                           >
@@ -1019,34 +1049,50 @@ export default function AdminUsersView() {
                                 return (
                                   <div key={c.id} className="flex items-center justify-between p-2.5 bg-white border border-gray-100 rounded-lg hover:border-emerald-100 transition-colors shadow-2xs">
                                     {isEditing ? (
-                                      <div className="flex-1 flex gap-2">
+                                      <div className="flex-1 flex flex-col sm:flex-row gap-2">
                                         <input
                                           type="text"
                                           value={editingCategoryName}
                                           onChange={(e) => setEditingCategoryName(e.target.value)}
                                           className="flex-1 rounded-lg border border-gray-300 px-2 py-0.5 text-xs focus:border-indigo-500 focus:outline-none bg-white"
+                                          placeholder="Name"
                                         />
-                                        <button
-                                          onClick={() => handleUpdateCategory(c.id)}
-                                          className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold"
-                                        >
-                                          Save
-                                        </button>
-                                        <button
-                                          onClick={() => setEditingCategoryId(null)}
-                                          className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded text-[10px] font-semibold"
-                                        >
-                                          Cancel
-                                        </button>
+                                        <input
+                                          type="number"
+                                          value={editingCategoryTargetAmount}
+                                          onChange={(e) => setEditingCategoryTargetAmount(e.target.value)}
+                                          className="w-24 rounded-lg border border-gray-300 px-2 py-0.5 text-xs focus:border-indigo-500 focus:outline-none bg-white"
+                                          placeholder="Goal ₹"
+                                        />
+                                        <div className="flex gap-1.5">
+                                          <button
+                                            onClick={() => handleUpdateCategory(c.id)}
+                                            className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold cursor-pointer"
+                                          >
+                                            Save
+                                          </button>
+                                          <button
+                                            onClick={() => setEditingCategoryId(null)}
+                                            className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded text-[10px] font-semibold cursor-pointer"
+                                          >
+                                            Cancel
+                                          </button>
+                                        </div>
                                       </div>
                                     ) : (
                                       <>
-                                        <span className="text-xs text-gray-800 font-medium">{c.name}</span>
+                                        <div className="flex flex-col">
+                                          <span className="text-xs text-gray-800 font-medium">{c.name}</span>
+                                          {c.targetAmount !== undefined && c.targetAmount > 0 && (
+                                            <span className="text-[10px] text-emerald-600 font-medium">Goal: ₹{c.targetAmount.toLocaleString()}</span>
+                                          )}
+                                        </div>
                                         <div className="flex gap-1.5">
                                           <button
                                             onClick={() => {
                                               setEditingCategoryId(c.id);
                                               setEditingCategoryName(c.name);
+                                              setEditingCategoryTargetAmount(c.targetAmount !== undefined ? String(c.targetAmount) : '');
                                             }}
                                             className="p-0.5 hover:bg-gray-50 text-gray-400 hover:text-indigo-600 rounded"
                                           >

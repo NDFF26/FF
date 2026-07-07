@@ -696,13 +696,14 @@ export class DBManager {
     return db.categories.filter(c => c.userId === userId && c.accountId === accountId);
   }
 
-  static manageCategory(categoryId: string, name: string, admin: { id: string; email: string }) {
+  static manageCategory(categoryId: string, name: string, admin: { id: string; email: string }, targetAmount?: number) {
     const db = this.load();
     const index = db.categories.findIndex(c => c.id === categoryId);
     if (index === -1) throw new Error('Category not found');
 
     const category = db.categories[index];
     category.name = name;
+    category.targetAmount = targetAmount;
     this.save(db);
 
     this.logAction(admin.id, admin.email, 'CATEGORY_MODIFIED', `Modified category ${category.name} (ID: ${categoryId})`);
@@ -764,14 +765,15 @@ export class DBManager {
     this.logAction(admin.id, admin.email, 'WALLET_DELETED', `Deleted wallet "${wallet.name}" (ID: ${walletId})`);
   }
 
-  static addCategory(userId: string, accountId: 'personal' | 'professional', name: string, type: TransactionType, admin: { id: string; email: string }): Category {
+  static addCategory(userId: string, accountId: 'personal' | 'professional', name: string, type: TransactionType, admin: { id: string; email: string }, targetAmount?: number): Category {
     const db = this.load();
     const newCategory: Category = {
       id: `c-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       userId,
       accountId,
       name,
-      type
+      type,
+      targetAmount
     };
 
     db.categories.push(newCategory);
@@ -1200,12 +1202,81 @@ export class DBManager {
       }
     });
 
+    const currentMonthKey = new Date().toISOString().substring(0, 7);
+    const categoryWarnings: any[] = [];
+    const categoryBudgets: any[] = [];
+    
+    categories
+      .filter(c => c.type === TransactionType.EXPENSE && c.targetAmount !== undefined && c.targetAmount > 0)
+      .forEach(c => {
+        let currentMonthSpent = 0;
+        userTxs
+          .filter(t => t.categoryId === c.id && t.type === TransactionType.EXPENSE && t.date.substring(0, 7) === currentMonthKey)
+          .forEach(t => {
+            currentMonthSpent += t.amount;
+          });
+        
+        const percentage = Math.round((currentMonthSpent / c.targetAmount!) * 100);
+        categoryBudgets.push({
+          id: c.id,
+          name: c.name,
+          targetAmount: c.targetAmount,
+          currentMonthSpent,
+          percentage
+        });
+
+        if (currentMonthSpent > c.targetAmount!) {
+          categoryWarnings.push({
+            categoryId: c.id,
+            categoryName: c.name,
+            targetAmount: c.targetAmount,
+            currentMonthSpent
+          });
+        }
+      });
+
+    const categoryIncomeBudgets: any[] = [];
+    const categoryIncomeAchievements: any[] = [];
+
+    categories
+      .filter(c => c.type === TransactionType.INCOME && c.targetAmount !== undefined && c.targetAmount > 0)
+      .forEach(c => {
+        let currentMonthEarned = 0;
+        userTxs
+          .filter(t => t.categoryId === c.id && t.type === TransactionType.INCOME && t.date.substring(0, 7) === currentMonthKey)
+          .forEach(t => {
+            currentMonthEarned += t.amount;
+          });
+        
+        const percentage = Math.round((currentMonthEarned / c.targetAmount!) * 100);
+        categoryIncomeBudgets.push({
+          id: c.id,
+          name: c.name,
+          targetAmount: c.targetAmount,
+          currentMonthEarned,
+          percentage
+        });
+
+        if (currentMonthEarned >= c.targetAmount!) {
+          categoryIncomeAchievements.push({
+            categoryId: c.id,
+            categoryName: c.name,
+            targetAmount: c.targetAmount,
+            currentMonthEarned
+          });
+        }
+      });
+
     return {
       totalIncome,
       totalExpense,
       netBalance,
       walletBalances,
       categoryExpenses,
+      categoryWarnings,
+      categoryBudgets,
+      categoryIncomeBudgets,
+      categoryIncomeAchievements,
       recentTransactions: recentTxs,
       chartData: Object.values(monthlySummary)
     };

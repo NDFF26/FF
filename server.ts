@@ -559,7 +559,7 @@ app.get('/api/admin/users/:userId/categories', requireAuth, requireAdmin, (req, 
 
 app.post('/api/admin/users/:userId/categories', requireAuth, requireAdmin, (req: AuthenticatedRequest, res) => {
   const { userId } = req.params;
-  const { name, type, accountId } = req.body;
+  const { name, type, accountId, targetAmount } = req.body;
 
   if (!name || !type || !accountId || (accountId !== 'personal' && accountId !== 'professional')) {
     return res.status(400).json({ error: 'Missing name, type or valid accountId.' });
@@ -571,7 +571,8 @@ app.post('/api/admin/users/:userId/categories', requireAuth, requireAdmin, (req:
       accountId,
       name,
       type,
-      { id: req.user!.id, email: req.user!.email }
+      { id: req.user!.id, email: req.user!.email },
+      targetAmount !== undefined ? Number(targetAmount) : undefined
     );
     res.status(201).json(category);
   } catch (error: any) {
@@ -581,7 +582,7 @@ app.post('/api/admin/users/:userId/categories', requireAuth, requireAdmin, (req:
 
 app.put('/api/admin/users/:userId/categories/:categoryId', requireAuth, requireAdmin, (req: AuthenticatedRequest, res) => {
   const { categoryId } = req.params;
-  const { name } = req.body;
+  const { name, targetAmount } = req.body;
 
   if (!name) {
     return res.status(400).json({ error: 'Category name is required.' });
@@ -591,7 +592,8 @@ app.put('/api/admin/users/:userId/categories/:categoryId', requireAuth, requireA
     DBManager.manageCategory(
       categoryId,
       name,
-      { id: req.user!.id, email: req.user!.email }
+      { id: req.user!.id, email: req.user!.email },
+      targetAmount !== undefined ? Number(targetAmount) : undefined
     );
     res.json({ success: true });
   } catch (error: any) {

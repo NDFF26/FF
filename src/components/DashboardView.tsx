@@ -311,6 +311,52 @@ export default function DashboardView({ activeAccount }: DashboardViewProps) {
         </button>
       </div>
 
+      {/* Category Target Exceedance Warning Notifications */}
+      {stats?.categoryWarnings && stats.categoryWarnings.length > 0 && (
+        <div id="category-warnings-container" className="space-y-2.5">
+          {stats.categoryWarnings.map((warning: any, idx: number) => (
+            <div
+              key={idx}
+              className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3 text-amber-800 animate-fade-in shadow-xs"
+            >
+              <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-amber-900">Monthly Expense Target Exceeded!</p>
+                <p className="text-xs mt-0.5 text-amber-800">
+                  Your monthly expense for <span className="font-bold">{warning.categoryName}</span> is{' '}
+                  <span className="font-bold">₹{warning.currentMonthSpent.toLocaleString('en-IN')}</span>, which is{' '}
+                  <span className="font-bold text-red-600">₹{(warning.currentMonthSpent - warning.targetAmount).toLocaleString('en-IN')}</span> over your target limit of{' '}
+                  <span className="font-bold">₹{warning.targetAmount.toLocaleString('en-IN')}</span>.
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Category Income Goal Accomplishment Notifications */}
+      {stats?.categoryIncomeAchievements && stats.categoryIncomeAchievements.length > 0 && (
+        <div id="category-income-achievements-container" className="space-y-2.5 mt-3">
+          {stats.categoryIncomeAchievements.map((achievement: any, idx: number) => (
+            <div
+              key={idx}
+              className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-start gap-3 text-emerald-800 animate-fade-in shadow-xs"
+            >
+              <TrendingUp className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-emerald-900">Monthly Income Goal Achieved! 🎉</p>
+                <p className="text-xs mt-0.5 text-emerald-800">
+                  Excellent! You have met your monthly income goal for <span className="font-bold">{achievement.categoryName}</span>. 
+                  You earned <span className="font-bold text-emerald-700">₹{achievement.currentMonthEarned.toLocaleString('en-IN')}</span>, 
+                  which is <span className="font-bold">₹{(achievement.currentMonthEarned - achievement.targetAmount).toLocaleString('en-IN')}</span> over your goal of{' '}
+                  <span className="font-bold">₹{achievement.targetAmount.toLocaleString('en-IN')}</span>!
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Bento Grid Analytics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {/* Total Balance Card */}
@@ -369,68 +415,151 @@ export default function DashboardView({ activeAccount }: DashboardViewProps) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* SVG Custom Monthly Comparison Chart */}
-        <div id="monthly-chart-card" className="bg-white p-6 rounded-2xl border border-gray-100 shadow-xs lg:col-span-2">
-          <h3 className="text-base font-bold text-gray-900 mb-4">6-Month Trend (Income vs Expense)</h3>
-          
-          {stats?.chartData && stats.chartData.length > 0 ? (
-            <div className="space-y-4">
-              {/* SVG Layout Chart */}
-              <div className="h-64 w-full relative flex items-end justify-between px-2 pt-6 border-b border-l border-gray-100">
-                {stats.chartData.map((d: any, index: number) => {
-                  const incHeight = (d.income / maxVal) * 180; // Scale to fit max 200px
-                  const expHeight = (d.expense / maxVal) * 180;
+        {/* Left Side: Analytics Charts Column (occupies 2 columns) */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* SVG Custom Monthly Comparison Chart */}
+          <div id="monthly-chart-card" className="bg-white p-6 rounded-2xl border border-gray-100 shadow-xs">
+            <h3 className="text-base font-bold text-gray-900 mb-4">6-Month Trend (Income vs Expense)</h3>
+            
+            {stats?.chartData && stats.chartData.length > 0 ? (
+              <div className="space-y-4">
+                {/* SVG Layout Chart */}
+                <div className="h-64 w-full relative flex items-end justify-between px-2 pt-6 border-b border-l border-gray-100">
+                  {stats.chartData.map((d: any, index: number) => {
+                    const incHeight = (d.income / maxVal) * 180; // Scale to fit max 200px
+                    const expHeight = (d.expense / maxVal) * 180;
 
-                  return (
-                    <div key={index} className="flex-1 flex flex-col items-center justify-end h-full px-2 group">
-                      {/* Tooltip Hover effect */}
-                      <div className="absolute top-0 opacity-0 group-hover:opacity-100 bg-gray-800 text-white text-xs px-2.5 py-1.5 rounded-lg transition-opacity pointer-events-none z-10 text-center shadow-md">
-                        <p className="font-semibold">{d.month}</p>
-                        <p className="text-emerald-400">Income: ₹{d.income.toLocaleString()}</p>
-                        <p className="text-red-400">Expense: ₹{d.expense.toLocaleString()}</p>
-                      </div>
+                    return (
+                      <div key={index} className="flex-1 flex flex-col items-center justify-end h-full px-2 group">
+                        {/* Tooltip Hover effect */}
+                        <div className="absolute top-0 opacity-0 group-hover:opacity-100 bg-gray-800 text-white text-xs px-2.5 py-1.5 rounded-lg transition-opacity pointer-events-none z-10 text-center shadow-md">
+                          <p className="font-semibold">{d.month}</p>
+                          <p className="text-emerald-400">Income: ₹{d.income.toLocaleString()}</p>
+                          <p className="text-red-400">Expense: ₹{d.expense.toLocaleString()}</p>
+                        </div>
 
-                      {/* Bars Container */}
-                      <div className="flex gap-1.5 items-end w-full justify-center">
-                        {/* Income Bar */}
-                        <div
-                          className="w-4 bg-emerald-500 rounded-t-xs hover:bg-emerald-600 transition-all duration-300 shadow-xs"
-                          style={{ height: `${Math.max(4, incHeight)}px` }}
-                        />
-                        {/* Expense Bar */}
-                        <div
-                          className="w-4 bg-red-500 rounded-t-xs hover:bg-red-600 transition-all duration-300 shadow-xs"
-                          style={{ height: `${Math.max(4, expHeight)}px` }}
-                        />
+                        {/* Bars Container */}
+                        <div className="flex gap-1.5 items-end w-full justify-center">
+                          {/* Income Bar */}
+                          <div
+                            className="w-4 bg-emerald-500 rounded-t-xs hover:bg-emerald-600 transition-all duration-300 shadow-xs"
+                            style={{ height: `${Math.max(4, incHeight)}px` }}
+                          />
+                          {/* Expense Bar */}
+                          <div
+                            className="w-4 bg-red-500 rounded-t-xs hover:bg-red-600 transition-all duration-300 shadow-xs"
+                            style={{ height: `${Math.max(4, expHeight)}px` }}
+                          />
+                        </div>
+                        <span className="text-[10px] font-mono text-gray-400 mt-2 block truncate w-full text-center">
+                          {d.month}
+                        </span>
                       </div>
-                      <span className="text-[10px] font-mono text-gray-400 mt-2 block truncate w-full text-center">
-                        {d.month}
-                      </span>
+                    );
+                  })}
+                </div>
+
+                {/* Chart Legend */}
+                <div className="flex items-center justify-center gap-6 text-xs font-semibold">
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-3 w-3 bg-emerald-500 rounded-xs" />
+                    <span className="text-gray-600">Income</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-3 w-3 bg-red-500 rounded-xs" />
+                    <span className="text-gray-600">Expense</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="h-64 flex items-center justify-center text-gray-400 text-sm">
+                No historical data found.
+              </div>
+            )}
+          </div>
+
+          {/* Category Target and Goal Performance Chart (Moved here) */}
+          <div id="category-targets-performance-card" className="bg-white p-6 rounded-2xl border border-gray-100 shadow-xs">
+            <h3 className="text-base font-bold text-gray-900 mb-1">Monthly Target Performance</h3>
+            <p className="text-xs text-gray-400 mb-5">Track your spending limits and income goals for the current month.</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Expense Limits */}
+              <div className="space-y-4">
+                <h4 className="text-xs font-bold text-red-500 uppercase tracking-wider flex items-center gap-1.5 pb-1 border-b border-gray-100">
+                  <TrendingDown className="h-3.5 w-3.5" />
+                  Monthly Expense Limits
+                </h4>
+                <div className="space-y-3.5">
+                  {stats?.categoryBudgets && stats.categoryBudgets.length > 0 ? (
+                    stats.categoryBudgets.map((cb: any) => {
+                      const barWidth = Math.min(100, cb.percentage);
+                      const isOver = cb.percentage > 100;
+                      return (
+                        <div key={cb.id} className="space-y-1.5">
+                          <div className="flex justify-between text-xs font-semibold">
+                            <span className="text-gray-700 truncate max-w-[50%]">{cb.name}</span>
+                            <span className={isOver ? 'text-red-600' : 'text-indigo-600'}>
+                              ₹{cb.currentMonthSpent.toLocaleString()} / ₹{cb.targetAmount.toLocaleString()} ({cb.percentage}%)
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden relative">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${isOver ? 'bg-red-500 animate-pulse' : 'bg-indigo-600'}`}
+                              style={{ width: `${barWidth}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="text-center py-6 text-xs text-gray-400 italic">
+                      No monthly expense targets configured. Set category target limits in the Admin panel to enable.
                     </div>
-                  );
-                })}
+                  )}
+                </div>
               </div>
 
-              {/* Chart Legend */}
-              <div className="flex items-center justify-center gap-6 text-xs font-semibold">
-                <div className="flex items-center gap-1.5">
-                  <div className="h-3 w-3 bg-emerald-500 rounded-xs" />
-                  <span className="text-gray-600">Income</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="h-3 w-3 bg-red-500 rounded-xs" />
-                  <span className="text-gray-600">Expense</span>
+              {/* Income Goals */}
+              <div className="space-y-4">
+                <h4 className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1.5 pb-1 border-b border-gray-100">
+                  <TrendingUp className="h-3.5 w-3.5" />
+                  Monthly Income Goals
+                </h4>
+                <div className="space-y-3.5">
+                  {stats?.categoryIncomeBudgets && stats.categoryIncomeBudgets.length > 0 ? (
+                    stats.categoryIncomeBudgets.map((cb: any) => {
+                      const barWidth = Math.min(100, cb.percentage);
+                      const isAchieved = cb.percentage >= 100;
+                      return (
+                        <div key={cb.id} className="space-y-1.5">
+                          <div className="flex justify-between text-xs font-semibold">
+                            <span className="text-gray-700 truncate max-w-[50%]">{cb.name}</span>
+                            <span className={isAchieved ? 'text-emerald-600 font-bold' : 'text-indigo-600'}>
+                              ₹{cb.currentMonthEarned.toLocaleString()} / ₹{cb.targetAmount.toLocaleString()} ({cb.percentage}%)
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden relative">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${isAchieved ? 'bg-emerald-500' : 'bg-indigo-500'}`}
+                              style={{ width: `${barWidth}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="text-center py-6 text-xs text-gray-400 italic">
+                      No monthly income goals configured. Set category income goals in the Admin panel to enable.
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
-          ) : (
-            <div className="h-64 flex items-center justify-center text-gray-400 text-sm">
-              No historical data found.
-            </div>
-          )}
+          </div>
         </div>
 
-        {/* Wallets & Category Distributions */}
+        {/* Right Side: Wallets & Distributions Column */}
         <div className="space-y-6">
           {/* Wallet List Card */}
           <div id="wallets-balances-card" className="bg-white p-6 rounded-2xl border border-gray-100 shadow-xs">
@@ -459,6 +588,52 @@ export default function DashboardView({ activeAccount }: DashboardViewProps) {
                 </div>
               ))}
             </div>
+
+            {/* Liquidity Distribution Stacked Bar Chart */}
+            {(() => {
+              const totalPositiveBalance = stats?.walletBalances?.reduce((sum: number, w: any) => sum + Math.max(0, w.balance), 0) ?? 0;
+              if (!stats?.walletBalances || stats.walletBalances.length === 0 || totalPositiveBalance === 0) return null;
+
+              const bgColors = [
+                'bg-indigo-600',
+                'bg-emerald-500',
+                'bg-amber-500',
+                'bg-sky-500',
+                'bg-purple-500',
+                'bg-rose-500'
+              ];
+
+              return (
+                <div className="mt-5 pt-4 border-t border-gray-100">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Liquidity Share Distribution</p>
+                  <div className="h-3 w-full bg-gray-100 rounded-full overflow-hidden flex">
+                    {stats.walletBalances.map((w: any, idx: number) => {
+                      const share = (Math.max(0, w.balance) / totalPositiveBalance) * 100;
+                      if (share <= 0) return null;
+                      return (
+                        <div
+                          key={w.id}
+                          className={`${bgColors[idx % bgColors.length]} h-full transition-all`}
+                          style={{ width: `${share}%` }}
+                        />
+                      );
+                    })}
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1.5 mt-3">
+                    {stats.walletBalances.map((w: any, idx: number) => {
+                      const share = (Math.max(0, w.balance) / totalPositiveBalance) * 100;
+                      if (share <= 0) return null;
+                      return (
+                        <div key={w.id} className="flex items-center gap-1.5 text-[10px] text-gray-500 font-semibold">
+                          <span className={`h-2 w-2 rounded-full ${bgColors[idx % bgColors.length]}`} />
+                          <span>{w.name} ({Math.round(share)}%)</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Top Categories Distribution */}
@@ -466,7 +641,7 @@ export default function DashboardView({ activeAccount }: DashboardViewProps) {
             <h3 className="text-base font-bold text-gray-900 mb-4">Top Spending Categories</h3>
             <div className="space-y-3">
               {stats?.categoryExpenses && stats.categoryExpenses.length > 0 ? (
-                stats.categoryExpenses.slice(0, 3).map((c: any) => {
+                stats.categoryExpenses.slice(0, 5).map((c: any) => {
                   const percentage = stats.totalExpense > 0 ? Math.round((c.total / stats.totalExpense) * 100) : 0;
                   return (
                     <div key={c.id} className="space-y-1">

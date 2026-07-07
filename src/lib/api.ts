@@ -445,7 +445,7 @@ export class ApiClient {
     return this.request<Category[]>(`/api/admin/users/${userId}/categories?accountId=${accountId}`);
   }
 
-  static async addAdminUserCategory(userId: string, category: { name: string; type: TransactionType; accountId: 'personal' | 'professional' }): Promise<Category> {
+  static async addAdminUserCategory(userId: string, category: { name: string; type: TransactionType; accountId: 'personal' | 'professional'; targetAmount?: number }): Promise<Category> {
     if (isLocalMode) {
       const saved = this.getSavedUser();
       if (!saved) throw new Error('Unauthorized');
@@ -458,7 +458,7 @@ export class ApiClient {
     });
   }
 
-  static async updateAdminUserCategory(userId: string, categoryId: string, category: { name: string }): Promise<void> {
+  static async updateAdminUserCategory(userId: string, categoryId: string, category: { name: string; targetAmount?: number }): Promise<void> {
     if (isLocalMode) {
       const saved = this.getSavedUser();
       if (!saved) throw new Error('Unauthorized');

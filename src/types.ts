@@ -49,6 +49,7 @@ export interface Category {
   accountId: 'personal' | 'professional';
   name: string;
   type: TransactionType;
+  targetAmount?: number;
 }
 
 export interface Transaction {

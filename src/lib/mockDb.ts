@@ -531,12 +531,81 @@ export class MockDatabase {
       }
     });
 
+    const currentMonthKey = new Date().toISOString().substring(0, 7);
+    const categoryWarnings: any[] = [];
+    const categoryBudgets: any[] = [];
+    
+    categories
+      .filter(c => c.type === TransactionType.EXPENSE && c.targetAmount !== undefined && c.targetAmount > 0)
+      .forEach(c => {
+        let currentMonthSpent = 0;
+        userTxs
+          .filter(t => t.categoryId === c.id && t.type === TransactionType.EXPENSE && t.date.substring(0, 7) === currentMonthKey)
+          .forEach(t => {
+            currentMonthSpent += t.amount;
+          });
+        
+        const percentage = Math.round((currentMonthSpent / c.targetAmount!) * 100);
+        categoryBudgets.push({
+          id: c.id,
+          name: c.name,
+          targetAmount: c.targetAmount,
+          currentMonthSpent,
+          percentage
+        });
+
+        if (currentMonthSpent > c.targetAmount!) {
+          categoryWarnings.push({
+            categoryId: c.id,
+            categoryName: c.name,
+            targetAmount: c.targetAmount,
+            currentMonthSpent
+          });
+        }
+      });
+
+    const categoryIncomeBudgets: any[] = [];
+    const categoryIncomeAchievements: any[] = [];
+
+    categories
+      .filter(c => c.type === TransactionType.INCOME && c.targetAmount !== undefined && c.targetAmount > 0)
+      .forEach(c => {
+        let currentMonthEarned = 0;
+        userTxs
+          .filter(t => t.categoryId === c.id && t.type === TransactionType.INCOME && t.date.substring(0, 7) === currentMonthKey)
+          .forEach(t => {
+            currentMonthEarned += t.amount;
+          });
+        
+        const percentage = Math.round((currentMonthEarned / c.targetAmount!) * 100);
+        categoryIncomeBudgets.push({
+          id: c.id,
+          name: c.name,
+          targetAmount: c.targetAmount,
+          currentMonthEarned,
+          percentage
+        });
+
+        if (currentMonthEarned >= c.targetAmount!) {
+          categoryIncomeAchievements.push({
+            categoryId: c.id,
+            categoryName: c.name,
+            targetAmount: c.targetAmount,
+            currentMonthEarned
+          });
+        }
+      });
+
     return {
       totalIncome,
       totalExpense,
       netBalance,
       walletBalances,
       categoryExpenses,
+      categoryWarnings,
+      categoryBudgets,
+      categoryIncomeBudgets,
+      categoryIncomeAchievements,
       recentTransactions: recentTxs,
       chartData: Object.values(monthlySummary)
     };
@@ -1200,9 +1269,9 @@ export class MockDatabase {
     adminUserId: string,
     adminEmail: string,
     userId: string,
-    category: { name: string; type: TransactionType; accountId: 'personal' | 'professional' }
+    category: { name: string; type: TransactionType; accountId: 'personal' | 'professional'; targetAmount?: number }
   ): Category {
-    return this.addCategory(userId, category.accountId, category.name, category.type, adminUserId, adminEmail);
+    return this.addCategory(userId, category.accountId, category.name, category.type, adminUserId, adminEmail, category.targetAmount);
   }
 
   private static addCategory(
@@ -1211,7 +1280,8 @@ export class MockDatabase {
     name: string,
     type: TransactionType,
     actorId: string,
-    actorEmail: string
+    actorEmail: string,
+    targetAmount?: number
   ): Category {
     const db = this.load();
     const newCategory: Category = {
@@ -1219,7 +1289,8 @@ export class MockDatabase {
       userId,
       accountId,
       name,
-      type
+      type,
+      targetAmount
     };
 
     db.categories.push(newCategory);
@@ -1228,13 +1299,14 @@ export class MockDatabase {
     return newCategory;
   }
 
-  static updateAdminUserCategory(adminUserId: string, adminEmail: string, userId: string, categoryId: string, category: { name: string }): void {
+  static updateAdminUserCategory(adminUserId: string, adminEmail: string, userId: string, categoryId: string, category: { name: string; targetAmount?: number }): void {
     const db = this.load();
     const index = db.categories.findIndex(c => c.id === categoryId);
     if (index === -1) throw new Error('Category not found');
 
     const cat = db.categories[index];
     cat.name = category.name;
+    cat.targetAmount = category.targetAmount;
     this.save(db);
     this.logAction(adminUserId, adminEmail, 'CATEGORY_MODIFIED', `Modified category ${cat.name} (ID: ${categoryId})`);
   }
