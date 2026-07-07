@@ -133,7 +133,14 @@ export default function TransactionsView({ activeAccount }: TransactionsViewProp
   const sortedTransactions = [...transactions].sort((a, b) => {
     let comparison = 0;
     if (sortField === 'date') {
-      comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      comparison = dateA - dateB;
+      if (comparison === 0) {
+        const timeA = new Date(a.createdDate || 0).getTime();
+        const timeB = new Date(b.createdDate || 0).getTime();
+        comparison = timeA - timeB;
+      }
     } else if (sortField === 'amount') {
       comparison = a.amount - b.amount;
     }

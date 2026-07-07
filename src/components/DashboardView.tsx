@@ -499,7 +499,7 @@ export default function DashboardView({ activeAccount }: DashboardViewProps) {
           <h3 className="text-base font-bold text-gray-900">Recent Transactions</h3>
           <span className="text-xs font-mono text-gray-400 flex items-center gap-1">
             <Clock className="h-3.5 w-3.5" />
-            Last 5 Transactions
+            Last 10 Transactions
           </span>
         </div>
 

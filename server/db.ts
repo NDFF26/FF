@@ -21,9 +21,15 @@ import {
 
 const DB_FILE = path.join(process.cwd(), 'db.json');
 
-// Simple native SHA-256 helper for security
+// Simple deterministic password hash for browser and server environment to align with Google Sheets
 export function hashPassword(password: string): string {
-  return crypto.createHash('sha256').update(password).digest('hex');
+  let hash = 0;
+  for (let i = 0; i < password.length; i++) {
+    const char = password.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash |= 0;
+  }
+  return 'mock-hash-' + Math.abs(hash).toString(16);
 }
 
 export interface DBStructure {
@@ -847,7 +853,11 @@ export class DBManager {
       txs = txs.filter(t => t.date <= filters.endDate);
     }
 
-    return txs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return txs.sort((a, b) => {
+      const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+      if (dateDiff !== 0) return dateDiff;
+      return new Date(b.createdDate || 0).getTime() - new Date(a.createdDate || 0).getTime();
+    });
   }
 
   static getDeletedTransactionsAdmin(): (Transaction & { userEmail: string; categoryName: string; walletName: string })[] {
@@ -1151,8 +1161,12 @@ export class DBManager {
 
     // Recent Transactions
     const recentTxs = [...userTxs]
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 5)
+      .sort((a, b) => {
+        const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+        if (dateDiff !== 0) return dateDiff;
+        return new Date(b.createdDate || 0).getTime() - new Date(a.createdDate || 0).getTime();
+      })
+      .slice(0, 10)
       .map(t => {
         const cat = categories.find(c => c.id === t.categoryId);
         const wal = wallets.find(w => w.id === t.walletId);

@@ -494,8 +494,12 @@ export class MockDatabase {
       .sort((a, b) => b.total - a.total);
 
     const recentTxs = [...userTxs]
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 5)
+      .sort((a, b) => {
+        const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+        if (dateDiff !== 0) return dateDiff;
+        return new Date(b.createdDate || 0).getTime() - new Date(a.createdDate || 0).getTime();
+      })
+      .slice(0, 10)
       .map(t => {
         const cat = categories.find(c => c.id === t.categoryId);
         const wal = wallets.find(w => w.id === t.walletId);
@@ -678,7 +682,11 @@ export class MockDatabase {
       txs = txs.filter(t => t.date <= filters.endDate);
     }
 
-    return txs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return txs.sort((a, b) => {
+      const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+      if (dateDiff !== 0) return dateDiff;
+      return new Date(b.createdDate || 0).getTime() - new Date(a.createdDate || 0).getTime();
+    });
   }
 
   static createTransaction(
