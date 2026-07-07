@@ -1363,6 +1363,23 @@ export class MockDatabase {
     );
   }
 
+  static deleteTransactionPermanently(adminUserId: string, adminEmail: string, txId: string) {
+    const db = this.load();
+    const index = db.transactions.findIndex(t => t.id === txId);
+    if (index === -1) throw new Error('Transaction not found.');
+
+    const tx = db.transactions[index];
+    db.transactions.splice(index, 1);
+    this.save(db);
+
+    this.logAction(
+      adminUserId,
+      adminEmail,
+      'TRANSACTION_PERMANENTLY_DELETED',
+      `Permanently deleted transaction of ${tx.amount} for user ID ${tx.userId}`
+    );
+  }
+
   static getAuditLogs(): AuditLog[] {
     const db = this.load();
     return [...db.auditLogs].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());

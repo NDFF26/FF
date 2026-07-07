@@ -362,7 +362,7 @@ export default function DashboardView({ activeAccount }: DashboardViewProps) {
         {/* Total Balance Card */}
         <div id="stats-card-balance" className="bg-white p-5 rounded-3xl border border-gray-100 shadow-xs flex items-center gap-4">
           <img
-            src="/balance.png"
+            src="./balance.png"
             alt="Net Account Balance"
             className="h-16 w-16 object-contain shrink-0"
             referrerPolicy="no-referrer"
@@ -378,7 +378,7 @@ export default function DashboardView({ activeAccount }: DashboardViewProps) {
         {/* Total Income Card */}
         <div id="stats-card-income" className="bg-white p-5 rounded-3xl border border-gray-100 shadow-xs flex items-center gap-4">
           <img
-            src="/income.png"
+            src="./income.png"
             alt="Total Income"
             className="h-16 w-16 object-contain shrink-0"
             referrerPolicy="no-referrer"
@@ -394,7 +394,7 @@ export default function DashboardView({ activeAccount }: DashboardViewProps) {
         {/* Total Expense Card */}
         <div id="stats-card-expense" className="bg-white p-5 rounded-3xl border border-gray-100 shadow-xs flex items-center gap-4">
           <img
-            src="/expenses.png"
+            src="./expenses.png"
             alt="Total Expense"
             className="h-16 w-16 object-contain shrink-0"
             referrerPolicy="no-referrer"
@@ -410,7 +410,7 @@ export default function DashboardView({ activeAccount }: DashboardViewProps) {
         {/* Net Savings % Card */}
         <div id="stats-card-savings" className="bg-white p-5 rounded-3xl border border-gray-100 shadow-xs flex items-center gap-4">
           <img
-            src="/saving.png"
+            src="./saving.png"
             alt="Savings Rate"
             className="h-16 w-16 object-contain shrink-0"
             referrerPolicy="no-referrer"

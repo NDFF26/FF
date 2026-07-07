@@ -1105,6 +1105,23 @@ export class DBManager {
     );
   }
 
+  static deleteTransactionPermanently(txId: string, admin: { id: string; email: string }) {
+    const db = this.load();
+    const index = db.transactions.findIndex(t => t.id === txId);
+    if (index === -1) throw new Error('Transaction not found.');
+
+    const tx = db.transactions[index];
+    db.transactions.splice(index, 1);
+    this.save(db);
+
+    this.logAction(
+      admin.id,
+      admin.email,
+      'TRANSACTION_PERMANENTLY_DELETED',
+      `Permanently deleted transaction of ${tx.amount} for user ID ${tx.userId}`
+    );
+  }
+
   // ANALYTICS & DASHBOARD STATS CALCULATOR
   static getDashboardStats(userId: string, accountId: 'personal' | 'professional') {
     const db = this.load();

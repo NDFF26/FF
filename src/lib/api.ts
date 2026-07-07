@@ -504,6 +504,18 @@ export class ApiClient {
     });
   }
 
+  static async deleteTransactionPermanently(id: string): Promise<void> {
+    if (isLocalMode) {
+      const saved = this.getSavedUser();
+      if (!saved) throw new Error('Unauthorized');
+      return MockDatabase.deleteTransactionPermanently(saved.id, saved.email, id);
+    }
+
+    await this.request<void>(`/api/admin/delete-transaction-permanent/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Admin System Logs & Settings
   static async getAuditLogs(): Promise<AuditLog[]> {
     if (isLocalMode) {

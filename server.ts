@@ -791,6 +791,17 @@ app.post('/api/admin/restore-transaction/:id', requireAuth, requireAdmin, (req: 
   }
 });
 
+app.delete('/api/admin/delete-transaction-permanent/:id', requireAuth, requireAdmin, (req: AuthenticatedRequest, res) => {
+  const txId = req.params.id;
+
+  try {
+    DBManager.deleteTransactionPermanently(txId, { id: req.user!.id, email: req.user!.email });
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
 // Audit Logs
 app.get('/api/admin/audit-logs', requireAuth, requireAdmin, (req, res) => {
   try {

@@ -918,38 +918,44 @@ export default function AdminUsersView() {
                     {/* Add Category Form */}
                     <form onSubmit={handleAddCategory} className="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-3">
                       <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Add Category</h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <input
-                          id="new-category-name"
-                          type="text"
-                          required
-                          placeholder={newCategoryType === TransactionType.EXPENSE ? "E.g. Food, Travel" : "E.g. Salary, Sales"}
-                          value={newCategoryName}
-                          onChange={(e) => setNewCategoryName(e.target.value)}
-                          className="block w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
-                        />
-                        <input
-                          id="new-category-target"
-                          type="number"
-                          placeholder={newCategoryType === TransactionType.EXPENSE ? "Limit Target ₹ (optional)" : "Income Goal ₹ (optional)"}
-                          value={newCategoryTargetAmount}
-                          onChange={(e) => setNewCategoryTargetAmount(e.target.value)}
-                          className="block w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
-                        />
-                        <div className="flex items-center gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                        <div className="sm:col-span-4">
+                          <input
+                            id="new-category-name"
+                            type="text"
+                            required
+                            placeholder={newCategoryType === TransactionType.EXPENSE ? "E.g. Food, Travel" : "E.g. Salary, Sales"}
+                            value={newCategoryName}
+                            onChange={(e) => setNewCategoryName(e.target.value)}
+                            className="block w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
+                          />
+                        </div>
+                        <div className="sm:col-span-3">
+                          <input
+                            id="new-category-target"
+                            type="number"
+                            placeholder={newCategoryType === TransactionType.EXPENSE ? "Limit Target ₹ (optional)" : "Income Goal ₹ (optional)"}
+                            value={newCategoryTargetAmount}
+                            onChange={(e) => setNewCategoryTargetAmount(e.target.value)}
+                            className="block w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
+                          />
+                        </div>
+                        <div className="sm:col-span-3">
                           <select
                             value={newCategoryType}
                             onChange={(e) => setNewCategoryType(e.target.value as TransactionType)}
-                            className="block rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:border-indigo-500 bg-white"
+                            className="block w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
                           >
                             <option value={TransactionType.EXPENSE}>Expense</option>
                             <option value={TransactionType.INCOME}>Income</option>
                           </select>
+                        </div>
+                        <div className="sm:col-span-2">
                           <button
                             id="add-category-btn"
                             type="submit"
                             disabled={categorySubmitting}
-                            className="ml-auto px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg text-xs transition-colors cursor-pointer"
+                            className="w-full px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg text-xs transition-colors cursor-pointer text-center"
                           >
                             {categorySubmitting ? 'Adding...' : 'Add'}
                           </button>
