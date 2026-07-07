@@ -360,52 +360,64 @@ export default function DashboardView({ activeAccount }: DashboardViewProps) {
       {/* Bento Grid Analytics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {/* Total Balance Card */}
-        <div id="stats-card-balance" className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs flex items-center gap-4">
-          <div className="h-12 w-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center shrink-0">
-            <DollarSign className="h-6 w-6" />
-          </div>
+        <div id="stats-card-balance" className="bg-white p-5 rounded-3xl border border-gray-100 shadow-xs flex items-center gap-4">
+          <img
+            src="/balance.png"
+            alt="Net Account Balance"
+            className="h-16 w-16 object-contain shrink-0"
+            referrerPolicy="no-referrer"
+          />
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Net Account Balance</p>
-            <h3 className={`text-2xl font-bold mt-1 tracking-tight truncate ${(stats?.netBalance ?? 0) >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
+            <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-400">NET ACCOUNT BALANCE</p>
+            <h3 className={`text-2xl sm:text-3xl font-extrabold mt-1 tracking-tight truncate ${(stats?.netBalance ?? 0) >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
               ₹{(stats?.netBalance ?? 0).toLocaleString('en-IN')}
             </h3>
           </div>
         </div>
 
         {/* Total Income Card */}
-        <div id="stats-card-income" className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs flex items-center gap-4">
-          <div className="h-12 w-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center shrink-0">
-            <TrendingUp className="h-6 w-6" />
-          </div>
+        <div id="stats-card-income" className="bg-white p-5 rounded-3xl border border-gray-100 shadow-xs flex items-center gap-4">
+          <img
+            src="/income.png"
+            alt="Total Income"
+            className="h-16 w-16 object-contain shrink-0"
+            referrerPolicy="no-referrer"
+          />
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Total Income</p>
-            <h3 className="text-2xl font-bold mt-1 tracking-tight text-emerald-600 truncate">
+            <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-400">TOTAL INCOME</p>
+            <h3 className="text-2xl sm:text-3xl font-extrabold mt-1 tracking-tight text-emerald-600 truncate">
               ₹{(stats?.totalIncome ?? 0).toLocaleString('en-IN')}
             </h3>
           </div>
         </div>
 
         {/* Total Expense Card */}
-        <div id="stats-card-expense" className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs flex items-center gap-4">
-          <div className="h-12 w-12 bg-red-50 text-red-600 rounded-xl flex items-center justify-center shrink-0">
-            <TrendingDown className="h-6 w-6" />
-          </div>
+        <div id="stats-card-expense" className="bg-white p-5 rounded-3xl border border-gray-100 shadow-xs flex items-center gap-4">
+          <img
+            src="/expenses.png"
+            alt="Total Expense"
+            className="h-16 w-16 object-contain shrink-0"
+            referrerPolicy="no-referrer"
+          />
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Total Expense</p>
-            <h3 className="text-2xl font-bold mt-1 tracking-tight text-red-600 truncate">
+            <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-400">TOTAL EXPENSE</p>
+            <h3 className="text-2xl sm:text-3xl font-extrabold mt-1 tracking-tight text-red-600 truncate">
               ₹{(stats?.totalExpense ?? 0).toLocaleString('en-IN')}
             </h3>
           </div>
         </div>
 
         {/* Net Savings % Card */}
-        <div id="stats-card-savings" className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs flex items-center gap-4">
-          <div className="h-12 w-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center shrink-0">
-            <Briefcase className="h-6 w-6" />
-          </div>
+        <div id="stats-card-savings" className="bg-white p-5 rounded-3xl border border-gray-100 shadow-xs flex items-center gap-4">
+          <img
+            src="/saving.png"
+            alt="Savings Rate"
+            className="h-16 w-16 object-contain shrink-0"
+            referrerPolicy="no-referrer"
+          />
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Savings Rate</p>
-            <h3 className="text-2xl font-bold mt-1 tracking-tight text-gray-900 truncate">
+            <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-400">SAVINGS RATE</p>
+            <h3 className="text-2xl sm:text-3xl font-extrabold mt-1 tracking-tight text-gray-900 truncate">
               {stats?.totalIncome > 0
                 ? `${Math.max(0, Math.round(((stats.totalIncome - stats.totalExpense) / stats.totalIncome) * 100))}%`
                 : '0%'}
