@@ -94,6 +94,28 @@ export default function App() {
     };
   }, []);
 
+  // 3-minute automatic background sync interval
+  useEffect(() => {
+    if (!user) return;
+
+    const intervalId = setInterval(async () => {
+      console.log('Running 3-minute background sync pull...');
+      try {
+        const updated = await ApiClient.pullFromGoogleSheets();
+        if (updated) {
+          console.log('Background sync: data has changed. Dispatching database_updated.');
+          ApiClient.notifyUpdate();
+        }
+      } catch (err) {
+        console.warn('Background sync pull failed:', err);
+      }
+    }, 3 * 60 * 1000); // 3 minutes
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [user]);
+
   // Auto timeout 1 minute after zero touch (inactivity) detection
   useEffect(() => {
     if (!user) return;

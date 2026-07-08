@@ -53,6 +53,12 @@ export class ApiClient {
     localStorage.removeItem(ACCOUNT_KEY);
   }
 
+  static notifyUpdate() {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('database_updated'));
+    }
+  }
+
   static getSavedUser(): Omit<User, 'passwordHash'> | null {
     const userStr = localStorage.getItem(USER_KEY);
     if (!userStr) return null;
@@ -217,16 +223,19 @@ export class ApiClient {
     amount: number;
     notes: string;
   }): Promise<Transaction> {
+    let result: Transaction;
     if (isLocalMode) {
       const saved = this.getSavedUser();
       if (!saved) throw new Error('Unauthorized');
-      return MockDatabase.createTransaction(saved.id, saved.email, tx);
+      result = MockDatabase.createTransaction(saved.id, saved.email, tx);
+    } else {
+      result = await this.request<Transaction>('/api/transactions', {
+        method: 'POST',
+        body: JSON.stringify(tx),
+      });
     }
-
-    return this.request<Transaction>('/api/transactions', {
-      method: 'POST',
-      body: JSON.stringify(tx),
-    });
+    this.notifyUpdate();
+    return result;
   }
 
   static async updateTransaction(
@@ -239,28 +248,32 @@ export class ApiClient {
       notes: string;
     }
   ): Promise<Transaction> {
+    let result: Transaction;
     if (isLocalMode) {
       const saved = this.getSavedUser();
       if (!saved) throw new Error('Unauthorized');
-      return MockDatabase.updateTransaction(id, saved.id, saved.email, saved.role, tx);
+      result = MockDatabase.updateTransaction(id, saved.id, saved.email, saved.role, tx);
+    } else {
+      result = await this.request<Transaction>(`/api/transactions/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(tx),
+      });
     }
-
-    return this.request<Transaction>(`/api/transactions/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(tx),
-    });
+    this.notifyUpdate();
+    return result;
   }
 
   static async deleteTransaction(id: string): Promise<void> {
     if (isLocalMode) {
       const saved = this.getSavedUser();
       if (!saved) throw new Error('Unauthorized');
-      return MockDatabase.deleteTransaction(id, saved.id, saved.email, saved.role);
+      MockDatabase.deleteTransaction(id, saved.id, saved.email, saved.role);
+    } else {
+      await this.request<void>(`/api/transactions/${id}`, {
+        method: 'DELETE',
+      });
     }
-
-    await this.request<void>(`/api/transactions/${id}`, {
-      method: 'DELETE',
-    });
+    this.notifyUpdate();
   }
 
   // Transfers
@@ -282,16 +295,19 @@ export class ApiClient {
     date: string;
     notes: string;
   }): Promise<any> {
+    let result: any;
     if (isLocalMode) {
       const saved = this.getSavedUser();
       if (!saved) throw new Error('Unauthorized');
-      return MockDatabase.createSelfTransfer(saved.id, saved.email, data);
+      result = MockDatabase.createSelfTransfer(saved.id, saved.email, data);
+    } else {
+      result = await this.request<any>('/api/transactions/self-transfer', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
     }
-
-    return this.request<any>('/api/transactions/self-transfer', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    this.notifyUpdate();
+    return result;
   }
 
   static async createUserTransfer(data: {
@@ -304,16 +320,19 @@ export class ApiClient {
     date: string;
     notes: string;
   }): Promise<any> {
+    let result: any;
     if (isLocalMode) {
       const saved = this.getSavedUser();
       if (!saved) throw new Error('Unauthorized');
-      return MockDatabase.createUserTransfer(saved.id, saved.email, data);
+      result = MockDatabase.createUserTransfer(saved.id, saved.email, data);
+    } else {
+      result = await this.request<any>('/api/transactions/user-transfer', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
     }
-
-    return this.request<any>('/api/transactions/user-transfer', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    this.notifyUpdate();
+    return result;
   }
 
   // Admin User CRUD
@@ -326,41 +345,46 @@ export class ApiClient {
   }
 
   static async createAdminUser(user: Partial<User> & { password?: string }): Promise<User> {
+    let result: User;
     if (isLocalMode) {
       const saved = this.getSavedUser();
       if (!saved) throw new Error('Unauthorized');
-      return MockDatabase.createAdminUser(saved.id, saved.email, user);
+      result = MockDatabase.createAdminUser(saved.id, saved.email, user);
+    } else {
+      result = await this.request<User>('/api/admin/users', {
+        method: 'POST',
+        body: JSON.stringify(user),
+      });
     }
-
-    return this.request<User>('/api/admin/users', {
-      method: 'POST',
-      body: JSON.stringify(user),
-    });
+    this.notifyUpdate();
+    return result;
   }
 
   static async updateAdminUser(id: string, updates: Partial<User>): Promise<void> {
     if (isLocalMode) {
       const saved = this.getSavedUser();
       if (!saved) throw new Error('Unauthorized');
-      return MockDatabase.updateAdminUser(saved.id, saved.email, id, updates);
+      MockDatabase.updateAdminUser(saved.id, saved.email, id, updates);
+    } else {
+      await this.request<void>(`/api/admin/users/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
     }
-
-    await this.request<void>(`/api/admin/users/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(updates),
-    });
+    this.notifyUpdate();
   }
 
   static async deleteAdminUser(id: string): Promise<void> {
     if (isLocalMode) {
       const saved = this.getSavedUser();
       if (!saved) throw new Error('Unauthorized');
-      return MockDatabase.deleteAdminUser(saved.id, saved.email, id);
+      MockDatabase.deleteAdminUser(saved.id, saved.email, id);
+    } else {
+      await this.request<void>(`/api/admin/users/${id}`, {
+        method: 'DELETE',
+      });
     }
-
-    await this.request<void>(`/api/admin/users/${id}`, {
-      method: 'DELETE',
-    });
+    this.notifyUpdate();
   }
 
   static async factoryReset(): Promise<void> {
@@ -381,13 +405,14 @@ export class ApiClient {
     if (isLocalMode) {
       const saved = this.getSavedUser();
       if (!saved) throw new Error('Unauthorized');
-      return MockDatabase.resetUserPassword(saved.id, saved.email, id, newPasswordPlain);
+      MockDatabase.resetUserPassword(saved.id, saved.email, id, newPasswordPlain);
+    } else {
+      await this.request<void>(`/api/admin/users/${id}/reset-password`, {
+        method: 'POST',
+        body: JSON.stringify({ password: newPasswordPlain }),
+      });
     }
-
-    await this.request<void>(`/api/admin/users/${id}/reset-password`, {
-      method: 'POST',
-      body: JSON.stringify({ password: newPasswordPlain }),
-    });
+    this.notifyUpdate();
   }
 
   // Admin Wallets & Categories Management
@@ -400,41 +425,46 @@ export class ApiClient {
   }
 
   static async addAdminUserWallet(userId: string, wallet: { name: string; isDefault: boolean; accountId: 'personal' | 'professional' }): Promise<Wallet> {
+    let result: Wallet;
     if (isLocalMode) {
       const saved = this.getSavedUser();
       if (!saved) throw new Error('Unauthorized');
-      return MockDatabase.addAdminUserWallet(saved.id, saved.email, userId, wallet);
+      result = MockDatabase.addAdminUserWallet(saved.id, saved.email, userId, wallet);
+    } else {
+      result = await this.request<Wallet>(`/api/admin/users/${userId}/wallets`, {
+        method: 'POST',
+        body: JSON.stringify(wallet)
+      });
     }
-
-    return this.request<Wallet>(`/api/admin/users/${userId}/wallets`, {
-      method: 'POST',
-      body: JSON.stringify(wallet)
-    });
+    this.notifyUpdate();
+    return result;
   }
 
   static async updateAdminUserWallet(userId: string, walletId: string, wallet: { name: string; isDefault: boolean }): Promise<void> {
     if (isLocalMode) {
       const saved = this.getSavedUser();
       if (!saved) throw new Error('Unauthorized');
-      return MockDatabase.updateAdminUserWallet(saved.id, saved.email, userId, walletId, wallet);
+      MockDatabase.updateAdminUserWallet(saved.id, saved.email, userId, walletId, wallet);
+    } else {
+      await this.request<void>(`/api/admin/users/${userId}/wallets/${walletId}`, {
+        method: 'PUT',
+        body: JSON.stringify(wallet)
+      });
     }
-
-    await this.request<void>(`/api/admin/users/${userId}/wallets/${walletId}`, {
-      method: 'PUT',
-      body: JSON.stringify(wallet)
-    });
+    this.notifyUpdate();
   }
 
   static async deleteAdminUserWallet(userId: string, walletId: string): Promise<void> {
     if (isLocalMode) {
       const saved = this.getSavedUser();
       if (!saved) throw new Error('Unauthorized');
-      return MockDatabase.deleteAdminUserWallet(saved.id, saved.email, userId, walletId);
+      MockDatabase.deleteAdminUserWallet(saved.id, saved.email, userId, walletId);
+    } else {
+      await this.request<void>(`/api/admin/users/${userId}/wallets/${walletId}`, {
+        method: 'DELETE'
+      });
     }
-
-    await this.request<void>(`/api/admin/users/${userId}/wallets/${walletId}`, {
-      method: 'DELETE'
-    });
+    this.notifyUpdate();
   }
 
   static async getAdminUserCategories(userId: string, accountId: 'personal' | 'professional'): Promise<Category[]> {
@@ -446,41 +476,46 @@ export class ApiClient {
   }
 
   static async addAdminUserCategory(userId: string, category: { name: string; type: TransactionType; accountId: 'personal' | 'professional'; targetAmount?: number }): Promise<Category> {
+    let result: Category;
     if (isLocalMode) {
       const saved = this.getSavedUser();
       if (!saved) throw new Error('Unauthorized');
-      return MockDatabase.addAdminUserCategory(saved.id, saved.email, userId, category);
+      result = MockDatabase.addAdminUserCategory(saved.id, saved.email, userId, category);
+    } else {
+      result = await this.request<Category>(`/api/admin/users/${userId}/categories`, {
+        method: 'POST',
+        body: JSON.stringify(category)
+      });
     }
-
-    return this.request<Category>(`/api/admin/users/${userId}/categories`, {
-      method: 'POST',
-      body: JSON.stringify(category)
-    });
+    this.notifyUpdate();
+    return result;
   }
 
   static async updateAdminUserCategory(userId: string, categoryId: string, category: { name: string; targetAmount?: number }): Promise<void> {
     if (isLocalMode) {
       const saved = this.getSavedUser();
       if (!saved) throw new Error('Unauthorized');
-      return MockDatabase.updateAdminUserCategory(saved.id, saved.email, userId, categoryId, category);
+      MockDatabase.updateAdminUserCategory(saved.id, saved.email, userId, categoryId, category);
+    } else {
+      await this.request<void>(`/api/admin/users/${userId}/categories/${categoryId}`, {
+        method: 'PUT',
+        body: JSON.stringify(category)
+      });
     }
-
-    await this.request<void>(`/api/admin/users/${userId}/categories/${categoryId}`, {
-      method: 'PUT',
-      body: JSON.stringify(category)
-    });
+    this.notifyUpdate();
   }
 
   static async deleteAdminUserCategory(userId: string, categoryId: string): Promise<void> {
     if (isLocalMode) {
       const saved = this.getSavedUser();
       if (!saved) throw new Error('Unauthorized');
-      return MockDatabase.deleteAdminUserCategory(saved.id, saved.email, userId, categoryId);
+      MockDatabase.deleteAdminUserCategory(saved.id, saved.email, userId, categoryId);
+    } else {
+      await this.request<void>(`/api/admin/users/${userId}/categories/${categoryId}`, {
+        method: 'DELETE'
+      });
     }
-
-    await this.request<void>(`/api/admin/users/${userId}/categories/${categoryId}`, {
-      method: 'DELETE'
-    });
+    this.notifyUpdate();
   }
 
   // Admin Recycle Bin / Restore
@@ -496,24 +531,26 @@ export class ApiClient {
     if (isLocalMode) {
       const saved = this.getSavedUser();
       if (!saved) throw new Error('Unauthorized');
-      return MockDatabase.restoreTransaction(saved.id, saved.email, id);
+      MockDatabase.restoreTransaction(saved.id, saved.email, id);
+    } else {
+      await this.request<void>(`/api/admin/restore-transaction/${id}`, {
+        method: 'POST',
+      });
     }
-
-    await this.request<void>(`/api/admin/restore-transaction/${id}`, {
-      method: 'POST',
-    });
+    this.notifyUpdate();
   }
 
   static async deleteTransactionPermanently(id: string): Promise<void> {
     if (isLocalMode) {
       const saved = this.getSavedUser();
       if (!saved) throw new Error('Unauthorized');
-      return MockDatabase.deleteTransactionPermanently(saved.id, saved.email, id);
+      MockDatabase.deleteTransactionPermanently(saved.id, saved.email, id);
+    } else {
+      await this.request<void>(`/api/admin/delete-transaction-permanent/${id}`, {
+        method: 'DELETE',
+      });
     }
-
-    await this.request<void>(`/api/admin/delete-transaction-permanent/${id}`, {
-      method: 'DELETE',
-    });
+    this.notifyUpdate();
   }
 
   // Admin System Logs & Settings
@@ -537,13 +574,14 @@ export class ApiClient {
     if (isLocalMode) {
       const saved = this.getSavedUser();
       if (!saved) throw new Error('Unauthorized');
-      return MockDatabase.updateSystemSettings(saved.id, saved.email, settings);
+      MockDatabase.updateSystemSettings(saved.id, saved.email, settings);
+    } else {
+      await this.request<void>('/api/admin/settings', {
+        method: 'PUT',
+        body: JSON.stringify(settings),
+      });
     }
-
-    await this.request<void>('/api/admin/settings', {
-      method: 'PUT',
-      body: JSON.stringify(settings),
-    });
+    this.notifyUpdate();
   }
 
   // Google Sheets Cloud Sync Methods

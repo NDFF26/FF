@@ -43,6 +43,15 @@ export default function AdminRecycleBin() {
 
   useEffect(() => {
     loadDeleted();
+
+    const handleDatabaseUpdate = () => {
+      loadDeleted();
+    };
+
+    window.addEventListener('database_updated', handleDatabaseUpdate);
+    return () => {
+      window.removeEventListener('database_updated', handleDatabaseUpdate);
+    };
   }, []);
 
   const handleRestore = async (id: string) => {

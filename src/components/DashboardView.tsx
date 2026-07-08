@@ -126,9 +126,15 @@ export default function DashboardView({ activeAccount }: DashboardViewProps) {
       loadData();
     };
 
+    const handleDatabaseUpdate = () => {
+      loadData();
+    };
+
     window.addEventListener('account_changed', handleAccountChange);
+    window.addEventListener('database_updated', handleDatabaseUpdate);
     return () => {
       window.removeEventListener('account_changed', handleAccountChange);
+      window.removeEventListener('database_updated', handleDatabaseUpdate);
     };
   }, [activeAccount]);
 
