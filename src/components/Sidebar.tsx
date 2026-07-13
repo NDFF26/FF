@@ -48,6 +48,31 @@ export default function Sidebar({
 }: SidebarProps) {
   const isAdmin = user.role === UserRole.ADMIN;
   const [logoError, setLogoError] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(() => {
+    return typeof window !== 'undefined' ? localStorage.getItem('ems_last_sync_time') : null;
+  });
+
+  React.useEffect(() => {
+    const handleDatabaseUpdate = () => {
+      if (typeof window !== 'undefined') {
+        setLastSyncTime(localStorage.getItem('ems_last_sync_time'));
+      }
+    };
+    window.addEventListener('database_updated', handleDatabaseUpdate);
+    return () => {
+      window.removeEventListener('database_updated', handleDatabaseUpdate);
+    };
+  }, []);
+
+  const formatSyncTime = (isoString: string | null) => {
+    if (!isoString) return 'Never';
+    try {
+      const date = new Date(isoString);
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    } catch (e) {
+      return 'Never';
+    }
+  };
 
   const userNavigation = [
     { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard },
@@ -207,6 +232,15 @@ export default function Sidebar({
                 : "Securely synced on server & backed up to Google Sheets."}
             </p>
 
+            {lastSyncTime && (
+              <div className="flex items-center justify-between text-[10px] text-gray-400 border-t border-gray-100/50 pt-1.5 mt-1">
+                <span>Last Sync:</span>
+                <span className="font-mono font-medium text-gray-600">
+                  {formatSyncTime(lastSyncTime)}
+                </span>
+              </div>
+            )}
+
             {/* Quick Manual Sync Refresh button */}
             <button
               id="sidebar-quick-sync-btn"
@@ -221,12 +255,15 @@ export default function Sidebar({
                     const hasDirty = localStorage.getItem('ems_mock_database_dirty') === 'true';
                     if (hasDirty) {
                       await ApiClient.pushToGoogleSheets();
+                      // Wait a brief moment for Google Sheets to process and save the spreadsheet
+                      await new Promise((resolve) => setTimeout(resolve, 1500));
                     }
                     const success = await ApiClient.pullFromGoogleSheets();
                     if (success) {
                       ApiClient.notifyUpdate();
                       alert('🔄 Sync check completed! Successfully updated local database from Google Sheets.');
                     } else {
+                      ApiClient.notifyUpdate(); // Always notify update to refresh the "Last Sync Time" on the sidebar
                       alert('🔄 Sync completed! Your database is up to date.');
                     }
                   } else {

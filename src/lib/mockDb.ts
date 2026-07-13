@@ -320,12 +320,13 @@ export class MockDatabase {
             method: 'POST',
             mode: 'no-cors', // Use no-cors to prevent pre-flight and CORS redirection blocks
             headers: {
-              'Content-Type': 'application/json'
+              'Content-Type': 'text/plain'
             },
             body: JSON.stringify({ action: 'sync', db })
           }).then(() => {
             // Success! Clear dirty flag since we've successfully pushed
             localStorage.removeItem('ems_mock_database_dirty');
+            localStorage.setItem('ems_last_sync_time', new Date().toISOString());
             console.log('[Auto-Sync] Successfully backed up local database to Google Sheets.');
           }).catch(err => {
             console.warn('Google Sheets background sync failed:', err);

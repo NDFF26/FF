@@ -626,9 +626,10 @@ export class ApiClient {
           body: JSON.stringify({ action: 'sync', db }),
         });
         
-        // Clear dirty flag upon successful fetch submission
+        // Clear dirty flag and update last sync time upon successful fetch submission
         if (typeof window !== 'undefined') {
           localStorage.removeItem('ems_mock_database_dirty');
+          localStorage.setItem('ems_last_sync_time', new Date().toISOString());
         }
       } catch (err: any) {
         throw new Error('Sync failed: ' + (err.message || err));
@@ -670,6 +671,10 @@ export class ApiClient {
         if (!response.ok) return false;
         const result = await response.json();
         if (result && result.success && result.data) {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('ems_last_sync_time', new Date().toISOString());
+          }
+
           // Double-check dirty status before overwriting
           if (typeof window !== 'undefined' && localStorage.getItem('ems_mock_database_dirty') === 'true') {
             console.warn('[Sync] Aborted importing database: local database became dirty during pull.');
@@ -679,16 +684,15 @@ export class ApiClient {
           const localDb = MockDatabase.load();
           const remoteDb = result.data;
           
-          if (localDb.lastUpdated && remoteDb.lastUpdated) {
-            const localTime = new Date(localDb.lastUpdated).getTime();
-            const remoteTime = new Date(remoteDb.lastUpdated).getTime();
-            if (remoteTime <= localTime) {
-              console.log('[Sync] Remote database is equal or older than local database. Skipping import to protect local data.', {
-                local: localDb.lastUpdated,
-                remote: remoteDb.lastUpdated
-              });
-              return false;
-            }
+          const localTime = localDb.lastUpdated ? new Date(localDb.lastUpdated).getTime() : 0;
+          const remoteTime = remoteDb.lastUpdated ? new Date(remoteDb.lastUpdated).getTime() : 0;
+          
+          if (localTime > 0 && remoteTime <= localTime) {
+            console.log('[Sync] Remote database is equal or older than local database. Skipping import to protect local data.', {
+              local: localDb.lastUpdated,
+              remote: remoteDb.lastUpdated
+            });
+            return false;
           }
           
           MockDatabase.importDatabase(remoteDb);
