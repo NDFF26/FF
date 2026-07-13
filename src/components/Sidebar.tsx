@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { User, UserRole } from '../types';
-import { ApiClient } from '../lib/api';
+import { ApiClient, isLocalMode } from '../lib/api';
 import {
   LayoutDashboard,
   ReceiptText,
@@ -19,7 +19,10 @@ import {
   Building2,
   Briefcase,
   Menu,
-  X
+  X,
+  Database,
+  Cloud,
+  RefreshCw
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -168,6 +171,62 @@ export default function Sidebar({
               Admin Control Mode
             </div>
           )}
+
+          {/* Connection Mode Indicator Box */}
+          <div className="mt-4 p-3 rounded-xl border border-gray-100 bg-gray-50/50 space-y-2 text-left">
+            <div className="flex items-center gap-1.5 justify-between">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                <Database className="h-3 w-3 text-gray-400" />
+                Database Mode
+              </span>
+              {isLocalMode ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-100">
+                  <span className="h-1 w-1 rounded-full bg-amber-500 animate-pulse"></span>
+                  Local
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                  <span className="h-1 w-1 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Cloud Sync
+                </span>
+              )}
+            </div>
+            
+            <p className="text-[10px] text-gray-500 leading-normal">
+              {isLocalMode 
+                ? "Saved in browser local memory. Entries won't automatically sync across other devices." 
+                : "Securely synced on server & backed up to Google Sheets."}
+            </p>
+
+            {/* Quick Manual Sync Refresh button */}
+            {!isLocalMode && (
+              <button
+                id="sidebar-quick-sync-btn"
+                type="button"
+                onClick={async (e) => {
+                  const targetBtn = e.currentTarget;
+                  const originalHtml = targetBtn.innerHTML;
+                  targetBtn.disabled = true;
+                  targetBtn.innerHTML = `<span class="animate-spin text-indigo-700">&#8635;</span> Syncing...`;
+                  try {
+                    await ApiClient.getMe();
+                    ApiClient.notifyUpdate();
+                    alert('🔄 Sync check completed! Latest entries have been synchronized.');
+                  } catch (err: any) {
+                    console.error('Manual sync failed:', err);
+                    alert('❌ Sync check failed: ' + (err.message || err));
+                  } finally {
+                    targetBtn.disabled = false;
+                    targetBtn.innerHTML = originalHtml;
+                  }
+                }}
+                className="w-full mt-1.5 flex items-center justify-center gap-1.5 py-1 px-2 border border-indigo-100 bg-indigo-50/50 hover:bg-indigo-50 text-[10px] font-bold text-indigo-700 rounded-md transition-colors cursor-pointer"
+              >
+                <RefreshCw className="h-3 w-3" />
+                Refresh & Sync Data
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Navigation items */}

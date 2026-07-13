@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { ApiClient } from './lib/api';
+import { ApiClient, isLocalMode } from './lib/api';
 import { User, UserRole } from './types';
 import Login from './components/Login';
 import Sidebar from './components/Sidebar';
@@ -30,28 +30,25 @@ export default function App() {
   const verifySession = async () => {
     setAppLoading(true);
     
-    // Auto-bootstrap server from Google Sheets if we have the URL in localStorage
-    let savedUrl = ApiClient.getGoogleSheetsUrl();
-    if (!savedUrl) {
-      const serverUrl = await ApiClient.getSyncUrlFromServer();
-      if (serverUrl) {
-        ApiClient.setGoogleSheetsUrl(serverUrl);
-        savedUrl = serverUrl;
-      }
-    }
-
-    if (savedUrl) {
-      try {
-        await ApiClient.bootstrapFromServer(savedUrl);
-      } catch (e) {
-        console.warn('Auto-bootstrap from Google Sheets failed', e);
+    // In local mode, auto-bootstrap local browser database state from Google Sheets on start
+    if (isLocalMode) {
+      const savedUrl = ApiClient.getGoogleSheetsUrl();
+      if (savedUrl) {
+        try {
+          await ApiClient.bootstrapFromServer(savedUrl);
+        } catch (e) {
+          console.warn('Auto-bootstrap from Google Sheets failed', e);
+        }
       }
     } else {
-      // Auto-pull latest data from Google Sheets sync if configured
+      // In online mode, retrieve Google Sheets Sync URL from server settings to keep client-side state synchronized
       try {
-        await ApiClient.pullFromGoogleSheets();
+        const serverUrl = await ApiClient.getSyncUrlFromServer();
+        if (serverUrl) {
+          ApiClient.setGoogleSheetsUrl(serverUrl);
+        }
       } catch (e) {
-        console.warn('Initial Google Sheets sync pull failed', e);
+        console.warn('Failed to fetch sync URL from server', e);
       }
     }
 
@@ -94,33 +91,42 @@ export default function App() {
     };
   }, []);
 
-  // 3-minute automatic background sync interval
+  // 1-minute automatic background sync interval to synchronize laptop & mobile devices
   useEffect(() => {
     if (!user) return;
 
     const intervalId = setInterval(async () => {
-      console.log('Running 3-minute background sync pull...');
+      console.log('Running background sync pull...');
       try {
-        const updated = await ApiClient.pullFromGoogleSheets();
-        if (updated) {
-          console.log('Background sync: data has changed. Dispatching database_updated.');
+        if (isLocalMode) {
+          const updated = await ApiClient.pullFromGoogleSheets();
+          if (updated) {
+            console.log('Local Mode: data has changed. Dispatching database_updated.');
+            ApiClient.notifyUpdate();
+          }
+        } else {
+          // In online/cloud mode, fetch latest session/user data from server.
+          // This triggers a throttled pull from Google Sheets automatically on the server,
+          // then we notify all UI views to fetch latest entries from server.
+          await ApiClient.getMe();
           ApiClient.notifyUpdate();
+          console.log('Online Mode: session pulled and database refreshed.');
         }
       } catch (err) {
         console.warn('Background sync pull failed:', err);
       }
-    }, 3 * 60 * 1000); // 3 minutes
+    }, 60 * 1000); // Poll every 1 minute for fast sync across devices
 
     return () => {
       clearInterval(intervalId);
     };
   }, [user]);
 
-  // Auto timeout 1 minute after zero touch (inactivity) detection
+  // Auto timeout 30 minutes after zero touch (inactivity) detection
   useEffect(() => {
     if (!user) return;
 
-    const TIMEOUT_DURATION = 60 * 1000; // 1 minute
+    const TIMEOUT_DURATION = 30 * 60 * 1000; // 30 minutes (much more user friendly for mobile/laptop)
     let timeoutId: NodeJS.Timeout;
 
     const resetTimer = () => {
@@ -129,7 +135,7 @@ export default function App() {
         ApiClient.logout().catch(() => {}).finally(() => {
           setUser(null);
           setActiveTab('dashboard');
-          alert('Session expired. Please log back in.');
+          alert('Session expired due to inactivity. Please log back in.');
         });
       }, TIMEOUT_DURATION);
     };
