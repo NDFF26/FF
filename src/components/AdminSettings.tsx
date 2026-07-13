@@ -13,8 +13,173 @@ import {
   Save,
   CheckCircle,
   ShieldAlert,
-  Trash2
+  Trash2,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  FileCode
 } from 'lucide-react';
+
+const APPS_SCRIPT_CODE = `function doGet(e) {
+  var action = e.parameter.action;
+  if (action === 'get') {
+    try {
+      var db = loadDatabase();
+      return ContentService.createTextOutput(JSON.stringify({ success: true, data: db })).setMimeType(ContentService.MimeType.JSON);
+    } catch (err) {
+      return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.toString() })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+  return ContentService.createTextOutput(JSON.stringify({ success: false, error: 'Invalid action' })).setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  try {
+    var data = JSON.parse(e.postData.contents);
+    if (data.action === 'sync') {
+      saveDatabase(data.db);
+      return ContentService.createTextOutput(JSON.stringify({ success: true, message: 'Database synced successfully' })).setMimeType(ContentService.MimeType.JSON);
+    }
+    return ContentService.createTextOutput(JSON.stringify({ success: false, error: 'Invalid action' })).setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.toString() })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function saveDatabase(db) {
+  if (!db) return;
+  writeSettingsToSheet(db.settings, db.lastUpdated);
+  writeTableToSheet("Users", ["id", "email", "passwordHash", "name", "displayName", "status", "role", "createdDate", "googleSheetsUrl"], db.users);
+  writeTableToSheet("Wallets", ["id", "userId", "accountId", "name", "isDefault"], db.wallets);
+  writeTableToSheet("Categories", ["id", "userId", "accountId", "name", "type", "targetAmount"], db.categories);
+  writeTableToSheet("Transactions", ["id", "userId", "accountId", "type", "date", "categoryId", "walletId", "amount", "notes", "status", "createdDate", "updatedDate"], db.transactions);
+  writeTableToSheet("AuditLogs", ["id", "timestamp", "userId", "userEmail", "action", "description"], db.auditLogs);
+  cleanDefaultSheet();
+}
+
+function loadDatabase() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var db = { users: [], wallets: [], categories: [], transactions: [], auditLogs: [], settings: {}, lastUpdated: "" };
+  
+  var settingsSheet = ss.getSheetByName("Settings");
+  if (settingsSheet) {
+    var values = settingsSheet.getDataRange().getValues();
+    for (var i = 1; i < values.length; i++) {
+      var key = values[i][0];
+      var val = values[i][1];
+      if (!key) continue;
+      if (key === "allowUserRegistration" || key === "maintenanceMode" || key === "requireTwoFactor") {
+        db.settings[key] = (typeof val === "boolean") ? val : (String(val).toLowerCase() === "true");
+      } else if (key === "sessionTimeoutHours") {
+        db.settings[key] = Number(val);
+      } else if (key === "lastUpdated") {
+        db.lastUpdated = String(val);
+      } else {
+        db.settings[key] = val;
+      }
+    }
+  }
+  
+  db.users = readTableFromSheet("Users");
+  db.wallets = readTableFromSheet("Wallets");
+  db.categories = readTableFromSheet("Categories");
+  db.transactions = readTableFromSheet("Transactions");
+  db.auditLogs = readTableFromSheet("AuditLogs");
+  return db;
+}
+
+function writeTableToSheet(sheetName, headers, dataArray) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) { sheet = ss.insertSheet(sheetName); } else { sheet.clear(); }
+  sheet.appendRow(headers);
+  var headerRange = sheet.getRange(1, 1, 1, headers.length);
+  headerRange.setFontWeight("bold").setBackground("#07274c").setFontColor("#ffffff").setHorizontalAlignment("center");
+  
+  if (dataArray && dataArray.length > 0) {
+    var rows = [];
+    for (var i = 0; i < dataArray.length; i++) {
+      var item = dataArray[i] || {};
+      var row = [];
+      for (var j = 0; j < headers.length; j++) {
+        var key = headers[j];
+        var val = item[key];
+        row.push(val === undefined || val === null ? "" : (typeof val === 'object' ? JSON.stringify(val) : val));
+      }
+      rows.push(row);
+    }
+    sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+  }
+  if (headers.length > 0) { sheet.autoResizeColumns(1, headers.length); }
+}
+
+function writeSettingsToSheet(settings, lastUpdated) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("Settings");
+  if (!sheet) { sheet = ss.insertSheet("Settings"); } else { sheet.clear(); }
+  sheet.appendRow(["Setting Key", "Setting Value"]);
+  sheet.getRange(1, 1, 1, 2).setFontWeight("bold").setBackground("#179743").setFontColor("#ffffff").setHorizontalAlignment("center");
+  
+  var rows = [];
+  if (settings && typeof settings === 'object') {
+    for (var key in settings) {
+      if (settings.hasOwnProperty(key)) { rows.push([key, settings[key]]); }
+    }
+  }
+  if (lastUpdated) { rows.push(["lastUpdated", lastUpdated]); }
+  if (rows.length > 0) { sheet.getRange(2, 1, rows.length, 2).setValues(rows); }
+  sheet.autoResizeColumns(1, 2);
+}
+
+function readTableFromSheet(sheetName) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) return [];
+  var values = sheet.getDataRange().getValues();
+  if (values.length <= 1) return [];
+  var headers = values[0];
+  var list = [];
+  for (var i = 1; i < values.length; i++) {
+    var row = values[i];
+    var item = {};
+    var hasData = false;
+    for (var j = 0; j < headers.length; j++) {
+      var key = headers[j];
+      var val = row[j];
+      if (val !== undefined && val !== null && val !== "") {
+        hasData = true;
+        if (key === "amount" || key === "targetAmount" || key === "sessionTimeoutHours") {
+          item[key] = Number(val);
+        } else if (key === "isDefault" || key === "allowUserRegistration" || key === "maintenanceMode" || key === "requireTwoFactor") {
+          item[key] = (typeof val === "boolean") ? val : (String(val).toLowerCase() === "true");
+        } else if (typeof val === "string" && (val.indexOf("{") === 0 || val.indexOf("[") === 0)) {
+          try { item[key] = JSON.parse(val); } catch (e) { item[key] = val; }
+        } else {
+          item[key] = (typeof val === "number" && (key === "id" || key === "userId" || key === "categoryId" || key === "walletId")) ? String(val) : val;
+        }
+      }
+    }
+    if (hasData) list.push(item);
+  }
+  return list;
+}
+
+function cleanDefaultSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheets = ss.getSheets();
+  for (var i = 0; i < sheets.length; i++) {
+    var name = sheets[i].getName();
+    if (name === "Sheet1" || name === "Sheet 1" || name === "Sheet") {
+      if (sheets.length > 1) {
+        try { ss.deleteSheet(sheets[i]); } catch (e) {
+          sheets[i].clear().getRange("A1").setValue("Database synced in separated sheets! Check the tabs below.");
+        }
+      } else {
+        sheets[i].clear().getRange("A1").setValue("Database synced in separated sheets! Check the tabs below.");
+      }
+    }
+  }
+}`;
 
 export default function AdminSettings() {
   const [settings, setSettings] = useState<SystemSettings | null>(null);
@@ -36,6 +201,8 @@ export default function AdminSettings() {
   const [syncingSheets, setSyncingSheets] = useState(false);
   const [sheetsSuccess, setSheetsSuccess] = useState<string | null>(null);
   const [sheetsError, setSheetsError] = useState<string | null>(null);
+  const [showScriptGuide, setShowScriptGuide] = useState(false);
+  const [copiedScript, setCopiedScript] = useState(false);
 
   // Form Fields
   const [currency, setCurrency] = useState('INR');
@@ -341,6 +508,75 @@ export default function AdminSettings() {
                   >
                     Disconnect Sync
                   </button>
+                )}
+              </div>
+
+              {/* Collapsible Apps Script Code Guide */}
+              <div className="border-t border-gray-100 pt-4 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowScriptGuide(!showScriptGuide)}
+                  className="w-full flex items-center justify-between text-left text-xs font-bold text-gray-700 bg-gray-50 hover:bg-gray-100 p-3 rounded-lg transition-colors cursor-pointer border border-gray-100"
+                >
+                  <span className="flex items-center gap-2">
+                    <FileCode className="h-4 w-4 text-emerald-600" />
+                    📋 Install Tabular Google Apps Script (Removes 50,000-character error & structures Sheet)
+                  </span>
+                  {showScriptGuide ? (
+                    <ChevronUp className="h-4 w-4 text-gray-500" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-gray-500" />
+                  )}
+                </button>
+
+                {showScriptGuide && (
+                  <div className="mt-3 p-4 bg-gray-50 border border-gray-100 rounded-xl space-y-3">
+                    <div className="text-[11px] text-gray-600 space-y-2 leading-relaxed font-sans">
+                      <p className="font-semibold text-gray-800">Why use this Tabular Version?</p>
+                      <ul className="list-disc pl-4 space-y-1">
+                        <li><strong>No 50,000 Character Cell Limit:</strong> Google Sheets limits single cells to 50k characters. Previously, saving your entire database JSON string inside one cell would crash. This script splits the database into logical tables.</li>
+                        <li><strong>Structured & readable sheets:</strong> Generates neat, labeled tabs for <strong>Settings, Users, Wallets, Categories, Transactions</strong> and <strong>AuditLogs</strong> with high-contrast styled headers.</li>
+                        <li><strong>Interactive formulas:</strong> Easily run calculations, pivots, graphs, and financial filters on your transactions inside Excel or Google Sheets!</li>
+                      </ul>
+                      
+                      <p className="font-semibold text-gray-800 pt-1">How to apply:</p>
+                      <ol className="list-decimal pl-4 space-y-1 font-sans">
+                        <li>Open your destination Google Sheet.</li>
+                        <li>Click <strong>Extensions &gt; Apps Script</strong> in the top menu.</li>
+                        <li>Delete all default code inside <strong>Code.gs</strong>, and paste the code below.</li>
+                        <li>Save the script by clicking the floppy disk icon.</li>
+                        <li>Click <strong>Deploy &gt; New deployment</strong>, click the gear icon to choose <strong>Web app</strong>.</li>
+                        <li>Set <code className="bg-white px-1 py-0.5 rounded border">Execute as: Me</code> and <code className="bg-white px-1 py-0.5 rounded border">Who has access: Anyone</code> (essential for synchronization).</li>
+                        <li>Click <strong>Deploy</strong>, authorize any permissions, copy the Web App URL, paste it above, and click <strong>Test &amp; Upload to Sheets</strong>.</li>
+                      </ol>
+                    </div>
+
+                    <div className="relative">
+                      <div className="absolute top-2 right-2 flex gap-1.5 z-10">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(APPS_SCRIPT_CODE);
+                            setCopiedScript(true);
+                            setTimeout(() => setCopiedScript(false), 2000);
+                          }}
+                          className="px-2.5 py-1 bg-white hover:bg-gray-100 text-gray-700 text-[10px] font-semibold rounded-md shadow-xs border border-gray-200 flex items-center gap-1 cursor-pointer transition-colors"
+                        >
+                          {copiedScript ? (
+                            <span className="text-emerald-600 font-bold">✓ Copied!</span>
+                          ) : (
+                            <>
+                              <Copy className="h-3 w-3" />
+                              Copy Code
+                            </>
+                          )}
+                        </button>
+                      </div>
+                      <pre className="p-3 bg-gray-950 text-emerald-400 font-mono text-[10px] rounded-lg overflow-x-auto max-h-60 border border-gray-800">
+                        {APPS_SCRIPT_CODE}
+                      </pre>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
