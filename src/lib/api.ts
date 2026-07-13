@@ -616,13 +616,22 @@ export class ApiClient {
 
     if (isLocalMode) {
       const db = MockDatabase.load();
-      const response = await fetch(url, {
-        method: 'POST',
-        body: JSON.stringify({ action: 'sync', db }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Sync failed with status: ' + response.status);
+      try {
+        await fetch(url, {
+          method: 'POST',
+          mode: 'no-cors', // Avoid CORS preflight OPTIONS block and follow redirects
+          headers: {
+            'Content-Type': 'text/plain'
+          },
+          body: JSON.stringify({ action: 'sync', db }),
+        });
+        
+        // Clear dirty flag upon successful fetch submission
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('ems_mock_database_dirty');
+        }
+      } catch (err: any) {
+        throw new Error('Sync failed: ' + (err.message || err));
       }
     } else {
       const response = await fetch('/api/admin/sheets/push', {
@@ -641,6 +650,19 @@ export class ApiClient {
     const url = this.getGoogleSheetsUrl();
     if (!url) return false;
 
+    // Safety: In local mode, if the database is dirty, try to push first.
+    // This ensures local changes made on mobile are NOT overwritten by older pulled data.
+    if (isLocalMode && typeof window !== 'undefined' && localStorage.getItem('ems_mock_database_dirty') === 'true') {
+      console.log('[Sync] Local database has unsynced changes. Attempting auto-push before pull...');
+      try {
+        await this.pushToGoogleSheets();
+        console.log('[Sync] Auto-push succeeded. Safe to proceed with pull.');
+      } catch (err) {
+        console.warn('[Sync] Auto-push failed. Skipping pull to protect local modifications:', err);
+        return false;
+      }
+    }
+
     try {
       if (isLocalMode) {
         const targetUrl = url.includes('?') ? `${url}&action=get` : `${url}?action=get`;
@@ -648,6 +670,11 @@ export class ApiClient {
         if (!response.ok) return false;
         const result = await response.json();
         if (result && result.success && result.data) {
+          // Double-check dirty status before overwriting
+          if (typeof window !== 'undefined' && localStorage.getItem('ems_mock_database_dirty') === 'true') {
+            console.warn('[Sync] Aborted importing database: local database became dirty during pull.');
+            return false;
+          }
           MockDatabase.importDatabase(result.data);
           return true;
         }

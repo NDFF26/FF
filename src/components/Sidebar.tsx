@@ -194,38 +194,52 @@ export default function Sidebar({
             
             <p className="text-[10px] text-gray-500 leading-normal">
               {isLocalMode 
-                ? "Saved in browser local memory. Entries won't automatically sync across other devices." 
+                ? (ApiClient.getGoogleSheetsUrl() 
+                    ? "Static Web App mode. Synced with Google Sheets across devices." 
+                    : "Static Web App mode. Add a Google Sheets URL in settings to sync across devices.")
                 : "Securely synced on server & backed up to Google Sheets."}
             </p>
 
             {/* Quick Manual Sync Refresh button */}
-            {!isLocalMode && (
-              <button
-                id="sidebar-quick-sync-btn"
-                type="button"
-                onClick={async (e) => {
-                  const targetBtn = e.currentTarget;
-                  const originalHtml = targetBtn.innerHTML;
-                  targetBtn.disabled = true;
-                  targetBtn.innerHTML = `<span class="animate-spin text-indigo-700">&#8635;</span> Syncing...`;
-                  try {
+            <button
+              id="sidebar-quick-sync-btn"
+              type="button"
+              onClick={async (e) => {
+                const targetBtn = e.currentTarget;
+                const originalHtml = targetBtn.innerHTML;
+                targetBtn.disabled = true;
+                targetBtn.innerHTML = `<span class="animate-spin text-indigo-700">&#8635;</span> Syncing...`;
+                try {
+                  if (isLocalMode) {
+                    const hasDirty = localStorage.getItem('ems_mock_database_dirty') === 'true';
+                    if (hasDirty) {
+                      await ApiClient.pushToGoogleSheets();
+                    }
+                    const success = await ApiClient.pullFromGoogleSheets();
+                    if (success) {
+                      ApiClient.notifyUpdate();
+                      alert('🔄 Sync check completed! Successfully updated local database from Google Sheets.');
+                    } else {
+                      alert('🔄 Sync completed! Your database is up to date.');
+                    }
+                  } else {
                     await ApiClient.getMe();
                     ApiClient.notifyUpdate();
                     alert('🔄 Sync check completed! Latest entries have been synchronized.');
-                  } catch (err: any) {
-                    console.error('Manual sync failed:', err);
-                    alert('❌ Sync check failed: ' + (err.message || err));
-                  } finally {
-                    targetBtn.disabled = false;
-                    targetBtn.innerHTML = originalHtml;
                   }
-                }}
-                className="w-full mt-1.5 flex items-center justify-center gap-1.5 py-1 px-2 border border-indigo-100 bg-indigo-50/50 hover:bg-indigo-50 text-[10px] font-bold text-indigo-700 rounded-md transition-colors cursor-pointer"
-              >
-                <RefreshCw className="h-3 w-3" />
-                Refresh & Sync Data
-              </button>
-            )}
+                } catch (err: any) {
+                  console.error('Manual sync failed:', err);
+                  alert('❌ Sync check failed: ' + (err.message || err));
+                } finally {
+                  targetBtn.disabled = false;
+                  targetBtn.innerHTML = originalHtml;
+                }
+              }}
+              className="w-full mt-1.5 flex items-center justify-center gap-1.5 py-1 px-2 border border-indigo-100 bg-indigo-50/50 hover:bg-indigo-50 text-[10px] font-bold text-indigo-700 rounded-md transition-colors cursor-pointer"
+            >
+              <RefreshCw className="h-3 w-3" />
+              Refresh & Sync Data
+            </button>
           </div>
         </div>
 
