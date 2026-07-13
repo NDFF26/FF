@@ -665,7 +665,7 @@ export class ApiClient {
 
     try {
       if (isLocalMode) {
-        const targetUrl = url.includes('?') ? `${url}&action=get` : `${url}?action=get`;
+        const targetUrl = url.includes('?') ? `${url}&action=get&_t=${Date.now()}` : `${url}?action=get&_t=${Date.now()}`;
         const response = await fetch(targetUrl);
         if (!response.ok) return false;
         const result = await response.json();
@@ -675,7 +675,23 @@ export class ApiClient {
             console.warn('[Sync] Aborted importing database: local database became dirty during pull.');
             return false;
           }
-          MockDatabase.importDatabase(result.data);
+          
+          const localDb = MockDatabase.load();
+          const remoteDb = result.data;
+          
+          if (localDb.lastUpdated && remoteDb.lastUpdated) {
+            const localTime = new Date(localDb.lastUpdated).getTime();
+            const remoteTime = new Date(remoteDb.lastUpdated).getTime();
+            if (remoteTime <= localTime) {
+              console.log('[Sync] Remote database is equal or older than local database. Skipping import to protect local data.', {
+                local: localDb.lastUpdated,
+                remote: remoteDb.lastUpdated
+              });
+              return false;
+            }
+          }
+          
+          MockDatabase.importDatabase(remoteDb);
           return true;
         }
       } else {

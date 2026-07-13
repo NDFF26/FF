@@ -180,10 +180,17 @@ export default function Sidebar({
                 Database Mode
               </span>
               {isLocalMode ? (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-100">
-                  <span className="h-1 w-1 rounded-full bg-amber-500 animate-pulse"></span>
-                  Local
-                </span>
+                ApiClient.getGoogleSheetsUrl() ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                    <span className="h-1 w-1 rounded-full bg-emerald-500 animate-pulse"></span>
+                    Sheets Synced
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-100">
+                    <span className="h-1 w-1 rounded-full bg-amber-500 animate-pulse"></span>
+                    Local Only
+                  </span>
+                )
               ) : (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
                   <span className="h-1 w-1 rounded-full bg-emerald-500 animate-pulse"></span>

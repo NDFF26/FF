@@ -36,6 +36,7 @@ export interface DBStructure {
   transactions: Transaction[];
   auditLogs: AuditLog[];
   settings: SystemSettings;
+  lastUpdated?: string;
 }
 
 const DEFAULT_SETTINGS: SystemSettings = {
@@ -301,30 +302,35 @@ export class MockDatabase {
     }
   }
 
-  private static save(db: DBStructure) {
+  private static save(db: DBStructure, isImport = false) {
     if (typeof window !== 'undefined') {
+      if (!isImport) {
+        db.lastUpdated = new Date().toISOString();
+        // Mark as dirty when local state is changed
+        localStorage.setItem('ems_mock_database_dirty', 'true');
+      }
+      
       localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
       
-      // Mark as dirty when local state is changed
-      localStorage.setItem('ems_mock_database_dirty', 'true');
-      
-      // Auto-background push to Google Sheets if configured
-      const syncUrl = localStorage.getItem('ff_google_sheets_sync_url') || 'https://script.google.com/macros/s/AKfycbxkSZsrgVBi3Sj5t3sOXfnKfgo-ML9qx-X93_7Lfc-y1htGOPJ6jeWKYRnH5at4Ck0/exec';
-      if (syncUrl) {
-        fetch(syncUrl, {
-          method: 'POST',
-          mode: 'no-cors', // Use no-cors to prevent pre-flight and CORS redirection blocks
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ action: 'sync', db })
-        }).then(() => {
-          // Success! Clear dirty flag since we've successfully pushed
-          localStorage.removeItem('ems_mock_database_dirty');
-          console.log('[Auto-Sync] Successfully backed up local database to Google Sheets.');
-        }).catch(err => {
-          console.warn('Google Sheets background sync failed:', err);
-        });
+      // Auto-background push to Google Sheets if configured (only if not an import)
+      if (!isImport) {
+        const syncUrl = localStorage.getItem('ff_google_sheets_sync_url') || 'https://script.google.com/macros/s/AKfycbxkSZsrgVBi3Sj5t3sOXfnKfgo-ML9qx-X93_7Lfc-y1htGOPJ6jeWKYRnH5at4Ck0/exec';
+        if (syncUrl) {
+          fetch(syncUrl, {
+            method: 'POST',
+            mode: 'no-cors', // Use no-cors to prevent pre-flight and CORS redirection blocks
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ action: 'sync', db })
+          }).then(() => {
+            // Success! Clear dirty flag since we've successfully pushed
+            localStorage.removeItem('ems_mock_database_dirty');
+            console.log('[Auto-Sync] Successfully backed up local database to Google Sheets.');
+          }).catch(err => {
+            console.warn('Google Sheets background sync failed:', err);
+          });
+        }
       }
     }
   }
@@ -345,7 +351,10 @@ export class MockDatabase {
           db.settings.googleSheetsUrl = syncUrl;
         }
       }
-      this.save(db);
+      this.save(db, true);
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('ems_mock_database_dirty');
+      }
     }
   }
 

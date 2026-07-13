@@ -117,8 +117,34 @@ export default function App() {
       }
     }, 60 * 1000); // Poll every 1 minute for fast sync across devices
 
+    // Focus & Visibility Change triggers immediate sync pull to sync devices instantly when focused/opened
+    const handleFocusOrVisibility = async () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        console.log('[Sync] App became active. Checking for remote updates...');
+        try {
+          if (isLocalMode) {
+            const updated = await ApiClient.pullFromGoogleSheets();
+            if (updated) {
+              console.log('[Sync] Remote changes detected & pulled on focus/visibility change.');
+              ApiClient.notifyUpdate();
+            }
+          } else {
+            await ApiClient.getMe();
+            ApiClient.notifyUpdate();
+          }
+        } catch (e) {
+          console.warn('[Sync] Focus/visibility change sync check failed:', e);
+        }
+      }
+    };
+
+    window.addEventListener('focus', handleFocusOrVisibility);
+    document.addEventListener('visibilitychange', handleFocusOrVisibility);
+
     return () => {
       clearInterval(intervalId);
+      window.removeEventListener('focus', handleFocusOrVisibility);
+      document.removeEventListener('visibilitychange', handleFocusOrVisibility);
     };
   }, [user]);
 
