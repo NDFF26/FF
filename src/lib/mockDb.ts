@@ -336,12 +336,92 @@ export class MockDatabase {
     }
   }
 
+  static mergeDatabases(localDb: DBStructure, remoteDb: DBStructure): DBStructure {
+    const merged: DBStructure = {
+      users: localDb.users ? [...localDb.users] : [],
+      wallets: localDb.wallets ? [...localDb.wallets] : [],
+      categories: localDb.categories ? [...localDb.categories] : [],
+      transactions: localDb.transactions ? [...localDb.transactions] : [],
+      auditLogs: localDb.auditLogs ? [...localDb.auditLogs] : [],
+      settings: { ...localDb.settings, ...remoteDb.settings },
+      lastUpdated: new Date().toISOString()
+    };
+
+    // Merge users
+    if (remoteDb && remoteDb.users && Array.isArray(remoteDb.users)) {
+      for (const rUser of remoteDb.users) {
+        const idx = merged.users.findIndex(u => u.id === rUser.id);
+        if (idx === -1) {
+          merged.users.push(rUser);
+        } else {
+          merged.users[idx] = { ...rUser, ...merged.users[idx] };
+        }
+      }
+    }
+
+    // Merge wallets
+    if (remoteDb && remoteDb.wallets && Array.isArray(remoteDb.wallets)) {
+      for (const rWallet of remoteDb.wallets) {
+        const idx = merged.wallets.findIndex(w => w.id === rWallet.id);
+        if (idx === -1) {
+          merged.wallets.push(rWallet);
+        } else {
+          merged.wallets[idx] = { ...rWallet, ...merged.wallets[idx] };
+        }
+      }
+    }
+
+    // Merge categories
+    if (remoteDb && remoteDb.categories && Array.isArray(remoteDb.categories)) {
+      for (const rCat of remoteDb.categories) {
+        const idx = merged.categories.findIndex(c => c.id === rCat.id);
+        if (idx === -1) {
+          merged.categories.push(rCat);
+        } else {
+          merged.categories[idx] = { ...rCat, ...merged.categories[idx] };
+        }
+      }
+    }
+
+    // Merge transactions
+    if (remoteDb && remoteDb.transactions && Array.isArray(remoteDb.transactions)) {
+      for (const rTx of remoteDb.transactions) {
+        const idx = merged.transactions.findIndex(t => t.id === rTx.id);
+        if (idx === -1) {
+          merged.transactions.push(rTx);
+        } else {
+          const lTx = merged.transactions[idx];
+          const localTime = lTx.updatedDate ? new Date(lTx.updatedDate).getTime() : 0;
+          const remoteTime = rTx.updatedDate ? new Date(rTx.updatedDate).getTime() : 0;
+          if (remoteTime > localTime) {
+            merged.transactions[idx] = rTx;
+          }
+        }
+      }
+    }
+
+    // Merge audit logs
+    if (remoteDb && remoteDb.auditLogs && Array.isArray(remoteDb.auditLogs)) {
+      for (const rLog of remoteDb.auditLogs) {
+        const idx = merged.auditLogs.findIndex(l => l.id === rLog.id);
+        if (idx === -1) {
+          merged.auditLogs.push(rLog);
+        }
+      }
+    }
+
+    return merged;
+  }
+
   static importDatabase(db: DBStructure) {
     if (db && typeof db === 'object') {
+      const localDb = this.load();
+      const mergedDb = this.mergeDatabases(localDb, db);
+
       const syncUrl = (typeof window !== 'undefined' ? localStorage.getItem('ff_google_sheets_sync_url') : null) || 'https://script.google.com/macros/s/AKfycbxkSZsrgVBi3Sj5t3sOXfnKfgo-ML9qx-X93_7Lfc-y1htGOPJ6jeWKYRnH5at4Ck0/exec';
       if (syncUrl) {
-        if (!db.settings) {
-          db.settings = {
+        if (!mergedDb.settings) {
+          mergedDb.settings = {
             allowUserRegistration: true,
             maintenanceMode: false,
             defaultCurrency: 'USD',
@@ -349,10 +429,10 @@ export class MockDatabase {
             googleSheetsUrl: syncUrl
           };
         } else {
-          db.settings.googleSheetsUrl = syncUrl;
+          mergedDb.settings.googleSheetsUrl = syncUrl;
         }
       }
-      this.save(db, true);
+      this.save(mergedDb, true);
       if (typeof window !== 'undefined') {
         localStorage.removeItem('ems_mock_database_dirty');
       }

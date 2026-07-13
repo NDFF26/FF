@@ -687,8 +687,8 @@ export class ApiClient {
           const localTime = localDb.lastUpdated ? new Date(localDb.lastUpdated).getTime() : 0;
           const remoteTime = remoteDb.lastUpdated ? new Date(remoteDb.lastUpdated).getTime() : 0;
           
-          if (localTime > 0 && remoteTime <= localTime) {
-            console.log('[Sync] Remote database is equal or older than local database. Skipping import to protect local data.', {
+          if (localTime > 0 && remoteTime > 0 && localTime === remoteTime) {
+            console.log('[Sync] Remote and local databases are identical. Skipping import.', {
               local: localDb.lastUpdated,
               remote: remoteDb.lastUpdated
             });
@@ -696,6 +696,14 @@ export class ApiClient {
           }
           
           MockDatabase.importDatabase(remoteDb);
+          
+          // Immediately push the merged database back to Google Sheets so that both sides stay in perfect agreement!
+          try {
+            await this.pushToGoogleSheets();
+          } catch (e) {
+            console.warn('[Sync] Post-merge background push failed:', e);
+          }
+          
           return true;
         }
       } else {

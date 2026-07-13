@@ -39,6 +39,7 @@ export interface DBStructure {
   transactions: Transaction[];
   auditLogs: AuditLog[];
   settings: SystemSettings;
+  lastUpdated?: string;
 }
 
 const DEFAULT_SETTINGS: SystemSettings = {
@@ -315,30 +316,115 @@ export class DBManager {
     return trimmed;
   }
 
-  static save(data: DBStructure) {
+  static save(data: DBStructure, isImport = false) {
+    if (!isImport) {
+      data.lastUpdated = new Date().toISOString();
+    }
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
 
     // Auto-background push to Google Sheets if configured in settings or env fallback
-    const syncUrl = this.getSyncUrl();
-    if (syncUrl) {
-      fetch(syncUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ action: 'sync', db: data })
-      }).catch(err => {
-        console.warn('Google Sheets background sync failed on server:', err);
-      });
+    if (!isImport) {
+      const syncUrl = this.getSyncUrl();
+      if (syncUrl) {
+        fetch(syncUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ action: 'sync', db: data })
+        }).catch(err => {
+          console.warn('Google Sheets background sync failed on server:', err);
+        });
+      }
     }
+  }
+
+  static mergeDatabases(localDb: DBStructure, remoteDb: DBStructure): DBStructure {
+    const merged: DBStructure = {
+      users: localDb.users ? [...localDb.users] : [],
+      wallets: localDb.wallets ? [...localDb.wallets] : [],
+      categories: localDb.categories ? [...localDb.categories] : [],
+      transactions: localDb.transactions ? [...localDb.transactions] : [],
+      auditLogs: localDb.auditLogs ? [...localDb.auditLogs] : [],
+      settings: { ...localDb.settings, ...remoteDb.settings },
+      lastUpdated: new Date().toISOString()
+    };
+
+    // Merge users
+    if (remoteDb && remoteDb.users && Array.isArray(remoteDb.users)) {
+      for (const rUser of remoteDb.users) {
+        const idx = merged.users.findIndex(u => u.id === rUser.id);
+        if (idx === -1) {
+          merged.users.push(rUser);
+        } else {
+          merged.users[idx] = { ...rUser, ...merged.users[idx] };
+        }
+      }
+    }
+
+    // Merge wallets
+    if (remoteDb && remoteDb.wallets && Array.isArray(remoteDb.wallets)) {
+      for (const rWallet of remoteDb.wallets) {
+        const idx = merged.wallets.findIndex(w => w.id === rWallet.id);
+        if (idx === -1) {
+          merged.wallets.push(rWallet);
+        } else {
+          merged.wallets[idx] = { ...rWallet, ...merged.wallets[idx] };
+        }
+      }
+    }
+
+    // Merge categories
+    if (remoteDb && remoteDb.categories && Array.isArray(remoteDb.categories)) {
+      for (const rCat of remoteDb.categories) {
+        const idx = merged.categories.findIndex(c => c.id === rCat.id);
+        if (idx === -1) {
+          merged.categories.push(rCat);
+        } else {
+          merged.categories[idx] = { ...rCat, ...merged.categories[idx] };
+        }
+      }
+    }
+
+    // Merge transactions
+    if (remoteDb && remoteDb.transactions && Array.isArray(remoteDb.transactions)) {
+      for (const rTx of remoteDb.transactions) {
+        const idx = merged.transactions.findIndex(t => t.id === rTx.id);
+        if (idx === -1) {
+          merged.transactions.push(rTx);
+        } else {
+          const lTx = merged.transactions[idx];
+          const localTime = lTx.updatedDate ? new Date(lTx.updatedDate).getTime() : 0;
+          const remoteTime = rTx.updatedDate ? new Date(rTx.updatedDate).getTime() : 0;
+          if (remoteTime > localTime) {
+            merged.transactions[idx] = rTx;
+          }
+        }
+      }
+    }
+
+    // Merge audit logs
+    if (remoteDb && remoteDb.auditLogs && Array.isArray(remoteDb.auditLogs)) {
+      for (const rLog of remoteDb.auditLogs) {
+        const idx = merged.auditLogs.findIndex(l => l.id === rLog.id);
+        if (idx === -1) {
+          merged.auditLogs.push(rLog);
+        }
+      }
+    }
+
+    return merged;
   }
 
   static importDatabase(db: DBStructure) {
     if (db && typeof db === 'object') {
+      const localDb = this.load();
+      const mergedDb = this.mergeDatabases(localDb, db);
+
       const currentSyncUrl = this.getSyncUrl();
       if (currentSyncUrl) {
-        if (!db.settings) {
-          db.settings = {
+        if (!mergedDb.settings) {
+          mergedDb.settings = {
             allowUserRegistration: true,
             maintenanceMode: false,
             defaultCurrency: 'USD',
@@ -346,10 +432,24 @@ export class DBManager {
             googleSheetsUrl: currentSyncUrl
           };
         } else {
-          db.settings.googleSheetsUrl = currentSyncUrl;
+          mergedDb.settings.googleSheetsUrl = currentSyncUrl;
         }
       }
-      this.save(db);
+      this.save(mergedDb, true);
+
+      // Immediately push the merged, unified database back to Google Sheets
+      // so that all devices/clients see the same merged state instantly!
+      if (currentSyncUrl) {
+        this.pushToGoogleSheets(currentSyncUrl).then((success) => {
+          if (success) {
+            console.log('[Sync] Successfully pushed unified merged database to Google Sheets.');
+          } else {
+            console.warn('[Sync] Google Sheets push of merged database failed.');
+          }
+        }).catch(err => {
+          console.warn('[Sync] Google Sheets push error:', err);
+        });
+      }
     }
   }
 
@@ -389,8 +489,22 @@ export class DBManager {
       const result = await response.json();
       console.log(`[Sync Pull] Response JSON success: ${result?.success}`);
       if (result && result.success && result.data) {
+        const localDb = this.load();
+        const remoteDb = result.data;
+        const localTime = localDb.lastUpdated ? new Date(localDb.lastUpdated).getTime() : 0;
+        const remoteTime = remoteDb.lastUpdated ? new Date(remoteDb.lastUpdated).getTime() : 0;
+
+        if (localTime > 0 && remoteTime > 0 && localTime === remoteTime) {
+          console.log('[Sync Server] Remote and local databases are identical. Skipping import.', {
+            local: localDb.lastUpdated,
+            remote: remoteDb.lastUpdated
+          });
+          this.lastPullTime = now;
+          return true;
+        }
+
         this.lastPullTime = now;
-        this.importDatabase(result.data);
+        this.importDatabase(remoteDb);
         return true;
       } else {
         console.warn(`[Sync Pull] Response format invalid or success=false:`, JSON.stringify(result));

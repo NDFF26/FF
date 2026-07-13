@@ -91,7 +91,7 @@ export default function App() {
     };
   }, []);
 
-  // 1-minute automatic background sync interval to synchronize laptop & mobile devices
+  // 15-second automatic background sync interval to synchronize laptop & mobile devices in real-time
   useEffect(() => {
     if (!user) return;
 
@@ -115,7 +115,7 @@ export default function App() {
       } catch (err) {
         console.warn('Background sync pull failed:', err);
       }
-    }, 60 * 1000); // Poll every 1 minute for fast sync across devices
+    }, 15 * 1000); // Poll every 15 seconds for fast sync across devices
 
     // Focus & Visibility Change triggers immediate sync pull to sync devices instantly when focused/opened
     const handleFocusOrVisibility = async () => {
