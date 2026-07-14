@@ -695,6 +695,17 @@ export class ApiClient {
             return false;
           }
           
+          if (localTime > remoteTime) {
+            console.log('[Sync] Local database is newer than remote. Skipping import and pushing local state to Google Sheets.', {
+              local: localDb.lastUpdated,
+              remote: remoteDb.lastUpdated
+            });
+            this.pushToGoogleSheets().catch(err => {
+              console.warn('[Sync] Post-check background push of newer local state failed:', err);
+            });
+            return false;
+          }
+          
           MockDatabase.importDatabase(remoteDb);
           
           // Immediately push the merged database back to Google Sheets so that both sides stay in perfect agreement!

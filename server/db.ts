@@ -340,6 +340,9 @@ export class DBManager {
   }
 
   static mergeDatabases(localDb: DBStructure, remoteDb: DBStructure): DBStructure {
+    const localTime = localDb.lastUpdated ? new Date(localDb.lastUpdated).getTime() : 0;
+    const remoteTime = remoteDb.lastUpdated ? new Date(remoteDb.lastUpdated).getTime() : 0;
+
     const merged: DBStructure = {
       users: localDb.users ? [...localDb.users] : [],
       wallets: localDb.wallets ? [...localDb.wallets] : [],
@@ -350,40 +353,23 @@ export class DBManager {
       lastUpdated: new Date().toISOString()
     };
 
-    // Merge users
-    if (remoteDb && remoteDb.users && Array.isArray(remoteDb.users)) {
-      for (const rUser of remoteDb.users) {
-        const idx = merged.users.findIndex(u => u.id === rUser.id);
-        if (idx === -1) {
-          merged.users.push(rUser);
-        } else {
-          merged.users[idx] = { ...rUser, ...merged.users[idx] };
-        }
+    if (remoteTime > localTime) {
+      console.log(`[Sync Merge] Remote is newer (${new Date(remoteTime).toISOString()} > ${new Date(localTime).toISOString()}). Overwriting users, wallets, and categories with remote state.`);
+      // Remote is strictly newer, overwrite administrative structures with remote's state
+      // to correctly preserve any deletions done on remote.
+      if (remoteDb.users && Array.isArray(remoteDb.users)) {
+        merged.users = [...remoteDb.users];
       }
-    }
-
-    // Merge wallets
-    if (remoteDb && remoteDb.wallets && Array.isArray(remoteDb.wallets)) {
-      for (const rWallet of remoteDb.wallets) {
-        const idx = merged.wallets.findIndex(w => w.id === rWallet.id);
-        if (idx === -1) {
-          merged.wallets.push(rWallet);
-        } else {
-          merged.wallets[idx] = { ...rWallet, ...merged.wallets[idx] };
-        }
+      if (remoteDb.wallets && Array.isArray(remoteDb.wallets)) {
+        merged.wallets = [...remoteDb.wallets];
       }
-    }
-
-    // Merge categories
-    if (remoteDb && remoteDb.categories && Array.isArray(remoteDb.categories)) {
-      for (const rCat of remoteDb.categories) {
-        const idx = merged.categories.findIndex(c => c.id === rCat.id);
-        if (idx === -1) {
-          merged.categories.push(rCat);
-        } else {
-          merged.categories[idx] = { ...rCat, ...merged.categories[idx] };
-        }
+      if (remoteDb.categories && Array.isArray(remoteDb.categories)) {
+        merged.categories = [...remoteDb.categories];
       }
+    } else {
+      console.log(`[Sync Merge] Local is newer or equal (${new Date(localTime).toISOString()} >= ${new Date(remoteTime).toISOString()}). Keeping local users, wallets, and categories.`);
+      // Local is newer or timestamps are equal, keep local administrative structures.
+      // We don't merge/revive deleted items from remote since local is newer or equal.
     }
 
     // Merge transactions
@@ -391,12 +377,15 @@ export class DBManager {
       for (const rTx of remoteDb.transactions) {
         const idx = merged.transactions.findIndex(t => t.id === rTx.id);
         if (idx === -1) {
+          // If the transaction is active, merge it. If it was deleted on the newer side, 
+          // we should respect that deletion. But since we have soft-deleted status,
+          // it's safer to merge it unless it is already deleted.
           merged.transactions.push(rTx);
         } else {
           const lTx = merged.transactions[idx];
-          const localTime = lTx.updatedDate ? new Date(lTx.updatedDate).getTime() : 0;
-          const remoteTime = rTx.updatedDate ? new Date(rTx.updatedDate).getTime() : 0;
-          if (remoteTime > localTime) {
+          const localTxTime = lTx.updatedDate ? new Date(lTx.updatedDate).getTime() : 0;
+          const remoteTxTime = rTx.updatedDate ? new Date(rTx.updatedDate).getTime() : 0;
+          if (remoteTxTime > localTxTime) {
             merged.transactions[idx] = rTx;
           }
         }
@@ -500,6 +489,19 @@ export class DBManager {
             remote: remoteDb.lastUpdated
           });
           this.lastPullTime = now;
+          return true;
+        }
+
+        if (localTime > remoteTime) {
+          console.log('[Sync Server] Local database is newer than remote. Skipping import and pushing local state to Google Sheets.', {
+            local: localDb.lastUpdated,
+            remote: remoteDb.lastUpdated
+          });
+          this.lastPullTime = now;
+          // Trigger asynchronous background push to sync the newer local state to Google Sheets
+          this.pushToGoogleSheets(url).catch(err => {
+            console.warn('[Sync Server] Background push of newer local state failed:', err);
+          });
           return true;
         }
 

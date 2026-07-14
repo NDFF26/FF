@@ -337,6 +337,9 @@ export class MockDatabase {
   }
 
   static mergeDatabases(localDb: DBStructure, remoteDb: DBStructure): DBStructure {
+    const localTime = localDb.lastUpdated ? new Date(localDb.lastUpdated).getTime() : 0;
+    const remoteTime = remoteDb.lastUpdated ? new Date(remoteDb.lastUpdated).getTime() : 0;
+
     const merged: DBStructure = {
       users: localDb.users ? [...localDb.users] : [],
       wallets: localDb.wallets ? [...localDb.wallets] : [],
@@ -347,40 +350,23 @@ export class MockDatabase {
       lastUpdated: new Date().toISOString()
     };
 
-    // Merge users
-    if (remoteDb && remoteDb.users && Array.isArray(remoteDb.users)) {
-      for (const rUser of remoteDb.users) {
-        const idx = merged.users.findIndex(u => u.id === rUser.id);
-        if (idx === -1) {
-          merged.users.push(rUser);
-        } else {
-          merged.users[idx] = { ...rUser, ...merged.users[idx] };
-        }
+    if (remoteTime > localTime) {
+      console.log(`[Sync Merge Local] Remote is newer (${new Date(remoteTime).toISOString()} > ${new Date(localTime).toISOString()}). Overwriting users, wallets, and categories with remote state.`);
+      // Remote is strictly newer, overwrite administrative structures with remote's state
+      // to correctly preserve any deletions done on remote.
+      if (remoteDb.users && Array.isArray(remoteDb.users)) {
+        merged.users = [...remoteDb.users];
       }
-    }
-
-    // Merge wallets
-    if (remoteDb && remoteDb.wallets && Array.isArray(remoteDb.wallets)) {
-      for (const rWallet of remoteDb.wallets) {
-        const idx = merged.wallets.findIndex(w => w.id === rWallet.id);
-        if (idx === -1) {
-          merged.wallets.push(rWallet);
-        } else {
-          merged.wallets[idx] = { ...rWallet, ...merged.wallets[idx] };
-        }
+      if (remoteDb.wallets && Array.isArray(remoteDb.wallets)) {
+        merged.wallets = [...remoteDb.wallets];
       }
-    }
-
-    // Merge categories
-    if (remoteDb && remoteDb.categories && Array.isArray(remoteDb.categories)) {
-      for (const rCat of remoteDb.categories) {
-        const idx = merged.categories.findIndex(c => c.id === rCat.id);
-        if (idx === -1) {
-          merged.categories.push(rCat);
-        } else {
-          merged.categories[idx] = { ...rCat, ...merged.categories[idx] };
-        }
+      if (remoteDb.categories && Array.isArray(remoteDb.categories)) {
+        merged.categories = [...remoteDb.categories];
       }
+    } else {
+      console.log(`[Sync Merge Local] Local is newer or equal (${new Date(localTime).toISOString()} >= ${new Date(remoteTime).toISOString()}). Keeping local users, wallets, and categories.`);
+      // Local is newer or timestamps are equal, keep local administrative structures.
+      // We don't merge/revive deleted items from remote since local is newer or equal.
     }
 
     // Merge transactions
@@ -391,9 +377,9 @@ export class MockDatabase {
           merged.transactions.push(rTx);
         } else {
           const lTx = merged.transactions[idx];
-          const localTime = lTx.updatedDate ? new Date(lTx.updatedDate).getTime() : 0;
-          const remoteTime = rTx.updatedDate ? new Date(rTx.updatedDate).getTime() : 0;
-          if (remoteTime > localTime) {
+          const localTxTime = lTx.updatedDate ? new Date(lTx.updatedDate).getTime() : 0;
+          const remoteTxTime = rTx.updatedDate ? new Date(rTx.updatedDate).getTime() : 0;
+          if (remoteTxTime > localTxTime) {
             merged.transactions[idx] = rTx;
           }
         }
