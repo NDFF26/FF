@@ -341,6 +341,43 @@ export default function TransactionsView({ activeAccount }: TransactionsViewProp
 
       {/* Transaction List Container */}
       <div id="transactions-list-card" className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
+        {/* Filtered Statistics Summary Bar */}
+        {!loading && !error && (
+          <div className="bg-slate-50/50 border-b border-gray-100 px-6 py-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Filtered Income</span>
+              <span className="text-lg font-bold text-emerald-600">
+                +₹{sortedTransactions
+                  .filter(t => t.type === TransactionType.INCOME)
+                  .reduce((sum, t) => sum + t.amount, 0)
+                  .toLocaleString('en-IN')}
+              </span>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Filtered Expenses</span>
+              <span className="text-lg font-bold text-red-600">
+                -₹{sortedTransactions
+                  .filter(t => t.type === TransactionType.EXPENSE)
+                  .reduce((sum, t) => sum + t.amount, 0)
+                  .toLocaleString('en-IN')}
+              </span>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Net Filtered Flow</span>
+              {(() => {
+                const inc = sortedTransactions.filter(t => t.type === TransactionType.INCOME).reduce((sum, t) => sum + t.amount, 0);
+                const exp = sortedTransactions.filter(t => t.type === TransactionType.EXPENSE).reduce((sum, t) => sum + t.amount, 0);
+                const net = inc - exp;
+                return (
+                  <span className={`text-lg font-bold ${net >= 0 ? 'text-indigo-600' : 'text-amber-600'}`}>
+                    {net >= 0 ? '+' : '-'}₹{Math.abs(net).toLocaleString('en-IN')}
+                  </span>
+                );
+              })()}
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="flex justify-center items-center py-20">
             <Loader2 className="h-7 w-7 animate-spin text-indigo-600" />

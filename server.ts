@@ -672,17 +672,35 @@ app.put('/api/admin/users/:id', requireAuth, requireAdmin, (req: AuthenticatedRe
 
 app.delete('/api/admin/users/:id', requireAuth, requireAdmin, (req: AuthenticatedRequest, res) => {
   const targetUserId = req.params.id;
+  console.log(`[Admin User Delete] Attempting to delete user ID: ${targetUserId} by admin: ${req.user!.email}`);
 
   try {
     const userToDelete = DBManager.getUsers().find(u => u.id === targetUserId);
-    if (userToDelete && userToDelete.role === 'ADMIN') {
+    if (!userToDelete) {
+      console.warn(`[Admin User Delete] User with ID ${targetUserId} not found.`);
+      return res.status(404).json({ error: 'User not found.' });
+    }
+    if (userToDelete.role === 'ADMIN') {
+      console.warn(`[Admin User Delete] Prevented deletion of admin account: ${userToDelete.email}`);
       return res.status(400).json({ error: 'Administrative accounts cannot be deleted.' });
     }
 
     DBManager.deleteUser(targetUserId, { id: req.user!.id, email: req.user!.email });
+    
+    // Clear sessions of the deleted user
+    let sessionsCleared = 0;
+    for (const [token, session] of sessions.entries()) {
+      if (session.userId === targetUserId) {
+        sessions.delete(token);
+        sessionsCleared++;
+      }
+    }
+    console.log(`[Admin User Delete] Successfully deleted user ID ${targetUserId} (${userToDelete.email}). Cleared ${sessionsCleared} active sessions.`);
+    
     res.json({ success: true });
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    console.error(`[Admin User Delete] Error deleting user ID ${targetUserId}:`, error);
+    res.status(400).json({ error: error.message || 'Failed to delete user' });
   }
 });
 
