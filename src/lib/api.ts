@@ -18,12 +18,8 @@ const TOKEN_KEY = 'ems_auth_token';
 const USER_KEY = 'ems_auth_user';
 const ACCOUNT_KEY = 'ems_active_account';
 
-// Automatically detect local-only environments like GitHub Pages (sub-folders or root domains)
-export const isLocalMode = typeof window !== 'undefined' && (
-  window.location.hostname.endsWith('github.io') ||
-  window.location.hostname.includes('github') ||
-  localStorage.getItem('ems_force_local') === 'true'
-);
+// Single central database mode (backed by Google Sheets)
+export const isLocalMode = false;
 
 export class ApiClient {
   private static getHeaders(): HeadersInit {

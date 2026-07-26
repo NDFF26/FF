@@ -340,67 +340,99 @@ export class DBManager {
   }
 
   static mergeDatabases(localDb: DBStructure, remoteDb: DBStructure): DBStructure {
-    const localTime = localDb.lastUpdated ? new Date(localDb.lastUpdated).getTime() : 0;
-    const remoteTime = remoteDb.lastUpdated ? new Date(remoteDb.lastUpdated).getTime() : 0;
-
     const merged: DBStructure = {
-      users: localDb.users ? [...localDb.users] : [],
-      wallets: localDb.wallets ? [...localDb.wallets] : [],
-      categories: localDb.categories ? [...localDb.categories] : [],
-      transactions: localDb.transactions ? [...localDb.transactions] : [],
-      auditLogs: localDb.auditLogs ? [...localDb.auditLogs] : [],
-      settings: { ...localDb.settings, ...remoteDb.settings },
+      users: [],
+      wallets: [],
+      categories: [],
+      transactions: [],
+      auditLogs: [],
+      settings: { ...localDb?.settings, ...remoteDb?.settings },
       lastUpdated: new Date().toISOString()
     };
 
-    if (remoteTime > localTime) {
-      console.log(`[Sync Merge] Remote is newer (${new Date(remoteTime).toISOString()} > ${new Date(localTime).toISOString()}). Overwriting users, wallets, and categories with remote state.`);
-      // Remote is strictly newer, overwrite administrative structures with remote's state
-      // to correctly preserve any deletions done on remote.
-      if (remoteDb.users && Array.isArray(remoteDb.users)) {
-        merged.users = [...remoteDb.users];
-      }
-      if (remoteDb.wallets && Array.isArray(remoteDb.wallets)) {
-        merged.wallets = [...remoteDb.wallets];
-      }
-      if (remoteDb.categories && Array.isArray(remoteDb.categories)) {
-        merged.categories = [...remoteDb.categories];
-      }
-    } else {
-      console.log(`[Sync Merge] Local is newer or equal (${new Date(localTime).toISOString()} >= ${new Date(remoteTime).toISOString()}). Keeping local users, wallets, and categories.`);
-      // Local is newer or timestamps are equal, keep local administrative structures.
-      // We don't merge/revive deleted items from remote since local is newer or equal.
+    // 1. Users - Union merge by ID (local changes take priority, remote users added if missing)
+    const userMap = new Map<string, User>();
+    if (remoteDb && Array.isArray(remoteDb.users)) {
+      remoteDb.users.forEach(u => { if (u && u.id) userMap.set(u.id, { ...u }); });
     }
-
-    // Merge transactions
-    if (remoteDb && remoteDb.transactions && Array.isArray(remoteDb.transactions)) {
-      for (const rTx of remoteDb.transactions) {
-        const idx = merged.transactions.findIndex(t => t.id === rTx.id);
-        if (idx === -1) {
-          // If the transaction is active, merge it. If it was deleted on the newer side, 
-          // we should respect that deletion. But since we have soft-deleted status,
-          // it's safer to merge it unless it is already deleted.
-          merged.transactions.push(rTx);
-        } else {
-          const lTx = merged.transactions[idx];
-          const localTxTime = lTx.updatedDate ? new Date(lTx.updatedDate).getTime() : 0;
-          const remoteTxTime = rTx.updatedDate ? new Date(rTx.updatedDate).getTime() : 0;
-          if (remoteTxTime > localTxTime) {
-            merged.transactions[idx] = rTx;
+    if (localDb && Array.isArray(localDb.users)) {
+      localDb.users.forEach(u => {
+        if (u && u.id) {
+          const existing = userMap.get(u.id);
+          if (!existing) {
+            userMap.set(u.id, { ...u });
+          } else {
+            userMap.set(u.id, { ...existing, ...u });
           }
         }
-      }
+      });
     }
+    merged.users = Array.from(userMap.values());
 
-    // Merge audit logs
-    if (remoteDb && remoteDb.auditLogs && Array.isArray(remoteDb.auditLogs)) {
-      for (const rLog of remoteDb.auditLogs) {
-        const idx = merged.auditLogs.findIndex(l => l.id === rLog.id);
-        if (idx === -1) {
-          merged.auditLogs.push(rLog);
-        }
-      }
+    // 2. Wallets - Union merge by ID
+    const walletMap = new Map<string, Wallet>();
+    if (remoteDb && Array.isArray(remoteDb.wallets)) {
+      remoteDb.wallets.forEach(w => { if (w && w.id) walletMap.set(w.id, { ...w }); });
     }
+    if (localDb && Array.isArray(localDb.wallets)) {
+      localDb.wallets.forEach(w => {
+        if (w && w.id) {
+          const existing = walletMap.get(w.id);
+          if (!existing) walletMap.set(w.id, { ...w });
+          else walletMap.set(w.id, { ...existing, ...w });
+        }
+      });
+    }
+    merged.wallets = Array.from(walletMap.values());
+
+    // 3. Categories - Union merge by ID
+    const categoryMap = new Map<string, Category>();
+    if (remoteDb && Array.isArray(remoteDb.categories)) {
+      remoteDb.categories.forEach(c => { if (c && c.id) categoryMap.set(c.id, { ...c }); });
+    }
+    if (localDb && Array.isArray(localDb.categories)) {
+      localDb.categories.forEach(c => {
+        if (c && c.id) {
+          const existing = categoryMap.get(c.id);
+          if (!existing) categoryMap.set(c.id, { ...c });
+          else categoryMap.set(c.id, { ...existing, ...c });
+        }
+      });
+    }
+    merged.categories = Array.from(categoryMap.values());
+
+    // 4. Transactions - Union merge by ID, compare updatedDate if both exist
+    const txMap = new Map<string, Transaction>();
+    if (remoteDb && Array.isArray(remoteDb.transactions)) {
+      remoteDb.transactions.forEach(t => { if (t && t.id) txMap.set(t.id, { ...t }); });
+    }
+    if (localDb && Array.isArray(localDb.transactions)) {
+      localDb.transactions.forEach(t => {
+        if (t && t.id) {
+          const existing = txMap.get(t.id);
+          if (!existing) {
+            txMap.set(t.id, { ...t });
+          } else {
+            const localTxTime = t.updatedDate ? new Date(t.updatedDate).getTime() : 0;
+            const remoteTxTime = existing.updatedDate ? new Date(existing.updatedDate).getTime() : 0;
+            if (localTxTime >= remoteTxTime) {
+              txMap.set(t.id, { ...existing, ...t });
+            }
+          }
+        }
+      });
+    }
+    merged.transactions = Array.from(txMap.values());
+
+    // 5. Audit Logs - Union merge by ID
+    const logMap = new Map<string, AuditLog>();
+    if (remoteDb && Array.isArray(remoteDb.auditLogs)) {
+      remoteDb.auditLogs.forEach(l => { if (l && l.id) logMap.set(l.id, { ...l }); });
+    }
+    if (localDb && Array.isArray(localDb.auditLogs)) {
+      localDb.auditLogs.forEach(l => { if (l && l.id) logMap.set(l.id, { ...l }); });
+    }
+    merged.auditLogs = Array.from(logMap.values());
 
     return merged;
   }
@@ -416,8 +448,8 @@ export class DBManager {
           mergedDb.settings = {
             allowUserRegistration: true,
             maintenanceMode: false,
-            defaultCurrency: 'USD',
-            backupFrequency: 'daily',
+            defaultCurrency: 'INR',
+            backupFrequency: 'Daily',
             googleSheetsUrl: currentSyncUrl
           };
         } else {
@@ -426,8 +458,7 @@ export class DBManager {
       }
       this.save(mergedDb, true);
 
-      // Immediately push the merged, unified database back to Google Sheets
-      // so that all devices/clients see the same merged state instantly!
+      // Push unified merged database to Google Sheets
       if (currentSyncUrl) {
         this.pushToGoogleSheets(currentSyncUrl).then((success) => {
           if (success) {
@@ -442,24 +473,38 @@ export class DBManager {
     }
   }
 
-  static async pushToGoogleSheets(url: string): Promise<boolean> {
+  static async pushToGoogleSheets(url?: string): Promise<boolean> {
+    const syncUrl = url || this.getSyncUrl();
+    if (!syncUrl) return false;
+
     const db = this.load();
     try {
-      const response = await fetch(url, {
+      console.log(`[Sync Push] Syncing database (users: ${db.users?.length}, txs: ${db.transactions?.length}) to Google Sheets...`);
+      const response = await fetch(syncUrl, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'text/plain;charset=utf-8'
         },
-        body: JSON.stringify({ action: 'sync', db })
+        body: JSON.stringify({ action: 'sync', db }),
+        redirect: 'follow'
       });
-      return response.ok;
-    } catch (err) {
-      console.error('Failed to push to Google Sheets on server:', err);
-      return false;
+
+      if (response.ok) {
+        console.log('[Sync Push] Successfully pushed database to Google Sheets.');
+        return true;
+      } else {
+        console.warn(`[Sync Push] Failed to push to Google Sheets, HTTP status: ${response.status}`);
+      }
+    } catch (err: any) {
+      console.error('[Sync Push] Failed to push to Google Sheets:', err?.message || err);
     }
+    return false;
   }
 
-  static async pullFromGoogleSheets(url: string, force = false): Promise<boolean> {
+  static async pullFromGoogleSheets(url?: string, force = false): Promise<boolean> {
+    const syncUrl = url || this.getSyncUrl();
+    if (!syncUrl) return false;
+
     const now = Date.now();
     if (!force && now - this.lastPullTime < this.PULL_THROTTLE_MS) {
       console.log('[Sync] Pull bypassed due to rate throttle (15s limit).');
@@ -467,52 +512,36 @@ export class DBManager {
     }
 
     try {
-      const targetUrl = url.includes('?') ? `${url}&action=get` : `${url}?action=get`;
+      const targetUrl = syncUrl.includes('?') ? `${syncUrl}&action=get` : `${syncUrl}?action=get`;
       console.log(`[Sync Pull] Fetching from targetUrl: "${targetUrl}"`);
       const response = await fetch(targetUrl);
-      console.log(`[Sync Pull] Response status: ${response.status} (${response.statusText})`);
       if (!response.ok) {
         console.warn(`[Sync Pull] Response not OK: ${response.status}`);
         return false;
       }
       const result = await response.json();
-      console.log(`[Sync Pull] Response JSON success: ${result?.success}`);
       if (result && result.success && result.data) {
         const localDb = this.load();
         const remoteDb = result.data;
-        const localTime = localDb.lastUpdated ? new Date(localDb.lastUpdated).getTime() : 0;
-        const remoteTime = remoteDb.lastUpdated ? new Date(remoteDb.lastUpdated).getTime() : 0;
 
-        if (localTime > 0 && remoteTime > 0 && localTime === remoteTime) {
-          console.log('[Sync Server] Remote and local databases are identical. Skipping import.', {
-            local: localDb.lastUpdated,
-            remote: remoteDb.lastUpdated
-          });
-          this.lastPullTime = now;
-          return true;
-        }
-
-        if (localTime > remoteTime) {
-          console.log('[Sync Server] Local database is newer than remote. Skipping import and pushing local state to Google Sheets.', {
-            local: localDb.lastUpdated,
-            remote: remoteDb.lastUpdated
-          });
-          this.lastPullTime = now;
-          // Trigger asynchronous background push to sync the newer local state to Google Sheets
-          this.pushToGoogleSheets(url).catch(err => {
-            console.warn('[Sync Server] Background push of newer local state failed:', err);
-          });
-          return true;
-        }
-
+        // Perform union merge to ensure NO local users or transactions are lost
+        const mergedDb = this.mergeDatabases(localDb, remoteDb);
         this.lastPullTime = now;
-        this.importDatabase(remoteDb);
+
+        // Save merged database to disk
+        fs.writeFileSync(DB_FILE, JSON.stringify(mergedDb, null, 2), 'utf-8');
+
+        // Always push the merged database back to Google Sheets so Google Sheets stays complete
+        this.pushToGoogleSheets(syncUrl).catch(err => {
+          console.warn('[Sync Pull] Background push of merged state failed:', err);
+        });
+
         return true;
       } else {
         console.warn(`[Sync Pull] Response format invalid or success=false:`, JSON.stringify(result));
       }
     } catch (err: any) {
-      console.error('Failed to pull from Google Sheets on server. Error details:', err?.message || err, err?.stack || '');
+      console.error('Failed to pull from Google Sheets on server. Error details:', err?.message || err);
     }
     return false;
   }

@@ -27,35 +27,61 @@
  */
 
 function doGet(e) {
-  var action = e.parameter.action;
+  var action = e && e.parameter ? e.parameter.action : '';
   
-  if (action === 'get') {
+  if (action === 'sync' && e.parameter && e.parameter.payload) {
     try {
-      var db = loadDatabase();
+      var data = JSON.parse(e.parameter.payload);
+      saveDatabase(data.db || data);
       return ContentService.createTextOutput(JSON.stringify({
         success: true,
-        data: db
+        message: 'Database synced successfully via GET'
       })).setMimeType(ContentService.MimeType.JSON);
     } catch (err) {
       return ContentService.createTextOutput(JSON.stringify({
         success: false,
-        error: err.toString(),
-        stack: err.stack
+        error: err.toString()
       })).setMimeType(ContentService.MimeType.JSON);
     }
   }
-  
-  return ContentService.createTextOutput(JSON.stringify({
-    success: false,
-    error: 'Invalid action or missing parameter'
-  })).setMimeType(ContentService.MimeType.JSON);
+
+  try {
+    var db = loadDatabase();
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true,
+      data: db
+    })).setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: err.toString(),
+      stack: err.stack
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
 }
 
 function doPost(e) {
   try {
-    var data = JSON.parse(e.postData.contents);
-    if (data.action === 'sync') {
-      saveDatabase(data.db);
+    var contents = "";
+    if (e && e.postData && e.postData.contents) {
+      contents = e.postData.contents;
+    } else if (e && e.parameter && e.parameter.payload) {
+      contents = e.parameter.payload;
+    } else if (e && e.parameter && e.parameter.data) {
+      contents = e.parameter.data;
+    }
+
+    if (!contents) {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false,
+        error: 'Empty request body or payload'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    var data = typeof contents === 'string' ? JSON.parse(contents) : contents;
+    var dbToSave = data.db || (data.users ? data : null);
+    if (dbToSave) {
+      saveDatabase(dbToSave);
       return ContentService.createTextOutput(JSON.stringify({
         success: true,
         message: 'Database synced successfully'
@@ -64,7 +90,7 @@ function doPost(e) {
     
     return ContentService.createTextOutput(JSON.stringify({
       success: false,
-      error: 'Invalid action'
+      error: 'Invalid action or missing database object'
     })).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({
