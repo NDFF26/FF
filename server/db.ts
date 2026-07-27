@@ -165,43 +165,112 @@ export class DBManager {
   }
 
   static mergeDatabases(localDb: DBStructure, remoteDb: DBStructure): DBStructure {
-    const localTime = localDb?.lastUpdated ? new Date(localDb.lastUpdated).getTime() : 0;
-    const remoteTime = remoteDb?.lastUpdated ? new Date(remoteDb.lastUpdated).getTime() : 0;
-
     const merged: DBStructure = {
       users: [],
       wallets: [],
       categories: [],
       transactions: [],
       auditLogs: [],
-      settings: { ...localDb?.settings, ...remoteDb?.settings },
+      settings: { ...DEFAULT_SETTINGS, ...localDb?.settings, ...remoteDb?.settings },
       lastUpdated: new Date().toISOString()
     };
 
-    if (remoteTime > localTime) {
-      // Remote is strictly newer (e.g. Google Sheets updated directly or from another client)
-      merged.users = Array.isArray(remoteDb?.users) ? [...remoteDb.users] : [];
-      merged.wallets = Array.isArray(remoteDb?.wallets) ? [...remoteDb.wallets] : [];
-      merged.categories = Array.isArray(remoteDb?.categories) ? [...remoteDb.categories] : [];
-      merged.transactions = Array.isArray(remoteDb?.transactions) ? [...remoteDb.transactions] : [];
-      merged.auditLogs = Array.isArray(remoteDb?.auditLogs) ? [...remoteDb.auditLogs] : [];
-    } else {
-      // Local is newer or timestamps equal (e.g. local deletion, reset, or user creation)
-      merged.users = Array.isArray(localDb?.users) ? [...localDb.users] : [];
-      merged.wallets = Array.isArray(localDb?.wallets) ? [...localDb.wallets] : [];
-      merged.categories = Array.isArray(localDb?.categories) ? [...localDb.categories] : [];
-      merged.transactions = Array.isArray(localDb?.transactions) ? [...localDb.transactions] : [];
-
-      // Merge audit logs by ID
-      const logMap = new Map<string, AuditLog>();
-      if (remoteDb && Array.isArray(remoteDb.auditLogs)) {
-        remoteDb.auditLogs.forEach(l => { if (l && l.id) logMap.set(l.id, l); });
-      }
-      if (localDb && Array.isArray(localDb.auditLogs)) {
-        localDb.auditLogs.forEach(l => { if (l && l.id) logMap.set(l.id, l); });
-      }
-      merged.auditLogs = Array.from(logMap.values());
+    // 1. Users - Non-destructive union merge by ID / Email
+    const userMap = new Map<string, User>();
+    if (localDb && Array.isArray(localDb.users)) {
+      localDb.users.forEach(u => {
+        if (u && (u.id || u.email)) {
+          const key = (u.email ? u.email.toLowerCase() : u.id);
+          userMap.set(key, { ...u });
+        }
+      });
     }
+    if (remoteDb && Array.isArray(remoteDb.users)) {
+      remoteDb.users.forEach(u => {
+        if (u && (u.id || u.email)) {
+          const key = (u.email ? u.email.toLowerCase() : u.id);
+          const existing = userMap.get(key);
+          if (!existing) {
+            userMap.set(key, { ...u });
+          } else {
+            userMap.set(key, {
+              ...existing,
+              ...u,
+              passwordHash: u.passwordHash || existing.passwordHash,
+              status: (existing.status === UserStatus.DISABLED || u.status === UserStatus.DISABLED)
+                ? UserStatus.DISABLED
+                : UserStatus.ACTIVE
+            });
+          }
+        }
+      });
+    }
+    merged.users = Array.from(userMap.values());
+
+    // 2. Wallets - Union merge by ID
+    const walletMap = new Map<string, Wallet>();
+    if (localDb && Array.isArray(localDb.wallets)) {
+      localDb.wallets.forEach(w => { if (w && w.id) walletMap.set(w.id, { ...w }); });
+    }
+    if (remoteDb && Array.isArray(remoteDb.wallets)) {
+      remoteDb.wallets.forEach(w => {
+        if (w && w.id) {
+          const existing = walletMap.get(w.id);
+          if (!existing) walletMap.set(w.id, { ...w });
+          else walletMap.set(w.id, { ...existing, ...w });
+        }
+      });
+    }
+    merged.wallets = Array.from(walletMap.values());
+
+    // 3. Categories - Union merge by ID
+    const categoryMap = new Map<string, Category>();
+    if (localDb && Array.isArray(localDb.categories)) {
+      localDb.categories.forEach(c => { if (c && c.id) categoryMap.set(c.id, { ...c }); });
+    }
+    if (remoteDb && Array.isArray(remoteDb.categories)) {
+      remoteDb.categories.forEach(c => {
+        if (c && c.id) {
+          const existing = categoryMap.get(c.id);
+          if (!existing) categoryMap.set(c.id, { ...c });
+          else categoryMap.set(c.id, { ...existing, ...c });
+        }
+      });
+    }
+    merged.categories = Array.from(categoryMap.values());
+
+    // 4. Transactions - Union merge by ID
+    const txMap = new Map<string, Transaction>();
+    if (localDb && Array.isArray(localDb.transactions)) {
+      localDb.transactions.forEach(t => { if (t && t.id) txMap.set(t.id, { ...t }); });
+    }
+    if (remoteDb && Array.isArray(remoteDb.transactions)) {
+      remoteDb.transactions.forEach(t => {
+        if (t && t.id) {
+          const existing = txMap.get(t.id);
+          if (!existing) {
+            txMap.set(t.id, { ...t });
+          } else {
+            const localTxTime = existing.updatedDate ? new Date(existing.updatedDate).getTime() : 0;
+            const remoteTxTime = t.updatedDate ? new Date(t.updatedDate).getTime() : 0;
+            if (remoteTxTime >= localTxTime) {
+              txMap.set(t.id, { ...existing, ...t });
+            }
+          }
+        }
+      });
+    }
+    merged.transactions = Array.from(txMap.values());
+
+    // 5. Audit Logs - Union merge by ID
+    const logMap = new Map<string, AuditLog>();
+    if (localDb && Array.isArray(localDb.auditLogs)) {
+      localDb.auditLogs.forEach(l => { if (l && l.id) logMap.set(l.id, l); });
+    }
+    if (remoteDb && Array.isArray(remoteDb.auditLogs)) {
+      remoteDb.auditLogs.forEach(l => { if (l && l.id) logMap.set(l.id, l); });
+    }
+    merged.auditLogs = Array.from(logMap.values());
 
     return merged;
   }
