@@ -18,8 +18,13 @@ const TOKEN_KEY = 'ems_auth_token';
 const USER_KEY = 'ems_auth_user';
 const ACCOUNT_KEY = 'ems_active_account';
 
-// Single central database mode (backed by Google Sheets)
-export const isLocalMode = false;
+// Automatically detect local/static hosting environments like GitHub Pages (sub-folders or root domains)
+export const isLocalMode = typeof window !== 'undefined' && (
+  window.location.hostname.endsWith('github.io') ||
+  window.location.hostname.includes('github') ||
+  window.location.protocol === 'file:' ||
+  localStorage.getItem('ems_force_local') === 'true'
+);
 
 export class ApiClient {
   private static getHeaders(): HeadersInit {

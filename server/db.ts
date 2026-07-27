@@ -50,11 +50,9 @@ const DEFAULT_SETTINGS: SystemSettings = {
   googleSheetsUrl: 'https://script.google.com/macros/s/AKfycbxkSZsrgVBi3Sj5t3sOXfnKfgo-ML9qx-X93_7Lfc-y1htGOPJ6jeWKYRnH5at4Ck0/exec'
 };
 
-// Seed initial data
+// Seed initial data (only System Admin by default)
 function generateSeedData(): DBStructure {
   const adminId = 'u-admin';
-  const user1Id = 'u-user1';
-  const user2Id = 'u-user2';
 
   const users: User[] = [
     {
@@ -66,210 +64,36 @@ function generateSeedData(): DBStructure {
       status: UserStatus.ACTIVE,
       role: UserRole.ADMIN,
       createdDate: new Date('2026-01-01').toISOString()
-    },
-    {
-      id: user1Id,
-      email: 'user1@ff.com',
-      passwordHash: hashPassword('user123'),
-      name: 'Rohan Sharma',
-      displayName: 'Rohan',
-      status: UserStatus.ACTIVE,
-      role: UserRole.USER,
-      createdDate: new Date('2026-05-15').toISOString()
-    },
-    {
-      id: user2Id,
-      email: 'user2@ff.com',
-      passwordHash: hashPassword('user123'),
-      name: 'Priya Patel',
-      displayName: 'Priya',
-      status: UserStatus.ACTIVE,
-      role: UserRole.USER,
-      createdDate: new Date('2026-06-01').toISOString()
     }
   ];
 
-  // Wallets setup
   const wallets: Wallet[] = [
-    // User 1 - Rohan - Personal
-    { id: 'w-rohan-cash', userId: user1Id, accountId: 'personal', name: 'Cash', isDefault: true },
-    { id: 'w-rohan-sbi', userId: user1Id, accountId: 'personal', name: 'SBI Bank', isDefault: false },
-    { id: 'w-rohan-hdfc', userId: user1Id, accountId: 'personal', name: 'HDFC Bank', isDefault: false },
-    // User 1 - Rohan - Professional
-    { id: 'w-rohan-icici', userId: user1Id, accountId: 'professional', name: 'ICICI Current', isDefault: true },
-    { id: 'w-rohan-axis', userId: user1Id, accountId: 'professional', name: 'Axis Business', isDefault: false },
-
-    // User 2 - Priya - Personal
-    { id: 'w-priya-cash', userId: user2Id, accountId: 'personal', name: 'Cash', isDefault: true },
-    { id: 'w-priya-hdfc', userId: user2Id, accountId: 'personal', name: 'HDFC Savings', isDefault: false },
-    // User 2 - Priya - Professional
-    { id: 'w-priya-sbi-current', userId: user2Id, accountId: 'professional', name: 'SBI Current', isDefault: true }
+    { id: 'w-admin-p-cash', userId: adminId, accountId: 'personal', name: 'Cash', isDefault: true },
+    { id: 'w-admin-p-bank', userId: adminId, accountId: 'personal', name: 'Bank Account', isDefault: false },
+    { id: 'w-admin-b-cash', userId: adminId, accountId: 'professional', name: 'Business Cash', isDefault: false },
+    { id: 'w-admin-b-bank', userId: adminId, accountId: 'professional', name: 'Business Bank Account', isDefault: true }
   ];
 
-  // Categories setup
   const categories: Category[] = [
-    // User 1 - Rohan - Personal - Expense
-    { id: 'c-rohan-p-food', userId: user1Id, accountId: 'personal', name: 'Food & Dining', type: TransactionType.EXPENSE },
-    { id: 'c-rohan-p-fuel', userId: user1Id, accountId: 'personal', name: 'Fuel & Travel', type: TransactionType.EXPENSE },
-    { id: 'c-rohan-p-shop', userId: user1Id, accountId: 'personal', name: 'Shopping', type: TransactionType.EXPENSE },
-    { id: 'c-rohan-p-med', userId: user1Id, accountId: 'personal', name: 'Medical', type: TransactionType.EXPENSE },
-    // User 1 - Rohan - Personal - Income
-    { id: 'c-rohan-p-sal', userId: user1Id, accountId: 'personal', name: 'Salary', type: TransactionType.INCOME },
-    { id: 'c-rohan-p-inv', userId: user1Id, accountId: 'personal', name: 'Investments', type: TransactionType.INCOME },
-
-    // User 1 - Rohan - Professional - Expense
-    { id: 'c-rohan-b-office', userId: user1Id, accountId: 'professional', name: 'Office Rent', type: TransactionType.EXPENSE },
-    { id: 'c-rohan-b-salary', userId: user1Id, accountId: 'professional', name: 'Employee Salary', type: TransactionType.EXPENSE },
-    { id: 'c-rohan-b-marketing', userId: user1Id, accountId: 'professional', name: 'Marketing', type: TransactionType.EXPENSE },
-    { id: 'c-rohan-b-travel', userId: user1Id, accountId: 'professional', name: 'Business Travel', type: TransactionType.EXPENSE },
-    // User 1 - Rohan - Professional - Income
-    { id: 'c-rohan-b-sales', userId: user1Id, accountId: 'professional', name: 'Client Sales', type: TransactionType.INCOME },
-    { id: 'c-rohan-b-retainer', userId: user1Id, accountId: 'professional', name: 'Retainers', type: TransactionType.INCOME },
-
-    // User 2 - Priya - Personal - Expense
-    { id: 'c-priya-p-food', userId: user2Id, accountId: 'personal', name: 'Food', type: TransactionType.EXPENSE },
-    { id: 'c-priya-p-rent', userId: user2Id, accountId: 'personal', name: 'Rent', type: TransactionType.EXPENSE },
-    // User 2 - Priya - Personal - Income
-    { id: 'c-priya-p-freelance', userId: user2Id, accountId: 'personal', name: 'Freelance', type: TransactionType.INCOME }
+    { id: 'c-admin-p-food', userId: adminId, accountId: 'personal', name: 'Food & Dining', type: TransactionType.EXPENSE },
+    { id: 'c-admin-p-fuel', userId: adminId, accountId: 'personal', name: 'Fuel & Travel', type: TransactionType.EXPENSE },
+    { id: 'c-admin-p-shop', userId: adminId, accountId: 'personal', name: 'Shopping', type: TransactionType.EXPENSE },
+    { id: 'c-admin-p-med', userId: adminId, accountId: 'personal', name: 'Medical', type: TransactionType.EXPENSE },
+    { id: 'c-admin-p-sal', userId: adminId, accountId: 'personal', name: 'Salary', type: TransactionType.INCOME },
+    { id: 'c-admin-b-rent', userId: adminId, accountId: 'professional', name: 'Office Rent', type: TransactionType.EXPENSE },
+    { id: 'c-admin-b-sales', userId: adminId, accountId: 'professional', name: 'Client Sales', type: TransactionType.INCOME }
   ];
 
-  // Transactions setup (Realistic sample transactions)
-  const transactions: Transaction[] = [
-    // Rohan - Personal - Active
-    {
-      id: 'tx-1',
-      userId: user1Id,
-      accountId: 'personal',
-      type: TransactionType.INCOME,
-      date: '2026-06-01',
-      categoryId: 'c-rohan-p-sal',
-      walletId: 'w-rohan-hdfc',
-      amount: 95000,
-      notes: 'Monthly Corporate Salary Credit',
-      status: TransactionStatus.ACTIVE,
-      createdDate: new Date('2026-06-01T10:00:00Z').toISOString(),
-      updatedDate: new Date('2026-06-01T10:00:00Z').toISOString()
-    },
-    {
-      id: 'tx-2',
-      userId: user1Id,
-      accountId: 'personal',
-      type: TransactionType.EXPENSE,
-      date: '2026-06-02',
-      categoryId: 'c-rohan-p-food',
-      walletId: 'w-rohan-cash',
-      amount: 1200,
-      notes: 'Family dinner at Olive Garden',
-      status: TransactionStatus.ACTIVE,
-      createdDate: new Date('2026-06-02T20:30:00Z').toISOString(),
-      updatedDate: new Date('2026-06-02T20:30:00Z').toISOString()
-    },
-    {
-      id: 'tx-3',
-      userId: user1Id,
-      accountId: 'personal',
-      type: TransactionType.EXPENSE,
-      date: '2026-06-03',
-      categoryId: 'c-rohan-p-fuel',
-      walletId: 'w-rohan-sbi',
-      amount: 3500,
-      notes: 'Car fuel refill full tank',
-      status: TransactionStatus.ACTIVE,
-      createdDate: new Date('2026-06-03T11:15:00Z').toISOString(),
-      updatedDate: new Date('2026-06-03T11:15:00Z').toISOString()
-    },
-    {
-      id: 'tx-4',
-      userId: user1Id,
-      accountId: 'personal',
-      type: TransactionType.EXPENSE,
-      date: '2026-06-05',
-      categoryId: 'c-rohan-p-shop',
-      walletId: 'w-rohan-hdfc',
-      amount: 12500,
-      notes: 'Noise-cancelling headphones',
-      status: TransactionStatus.ACTIVE,
-      createdDate: new Date('2026-06-05T15:45:00Z').toISOString(),
-      updatedDate: new Date('2026-06-05T15:45:00Z').toISOString()
-    },
-    // Rohan - Personal - Soft Deleted (for testing)
-    {
-      id: 'tx-del-1',
-      userId: user1Id,
-      accountId: 'personal',
-      type: TransactionType.EXPENSE,
-      date: '2026-06-06',
-      categoryId: 'c-rohan-p-food',
-      walletId: 'w-rohan-cash',
-      amount: 500,
-      notes: 'Accidental double entry cafe payment',
-      status: TransactionStatus.DELETED,
-      createdDate: new Date('2026-06-06T08:10:00Z').toISOString(),
-      updatedDate: new Date('2026-06-06T08:15:00Z').toISOString()
-    },
+  const transactions: Transaction[] = [];
 
-    // Rohan - Professional - Active
-    {
-      id: 'tx-5',
-      userId: user1Id,
-      accountId: 'professional',
-      type: TransactionType.INCOME,
-      date: '2026-06-01',
-      categoryId: 'c-rohan-b-sales',
-      walletId: 'w-rohan-icici',
-      amount: 250000,
-      notes: 'Client payment - TechCorp Software Project Delivery',
-      status: TransactionStatus.ACTIVE,
-      createdDate: new Date('2026-06-01T09:00:00Z').toISOString(),
-      updatedDate: new Date('2026-06-01T09:00:00Z').toISOString()
-    },
-    {
-      id: 'tx-6',
-      userId: user1Id,
-      accountId: 'professional',
-      type: TransactionType.EXPENSE,
-      date: '2026-06-05',
-      categoryId: 'c-rohan-b-office',
-      walletId: 'w-rohan-icici',
-      amount: 45000,
-      notes: 'Office rent for Sector-62 space',
-      status: TransactionStatus.ACTIVE,
-      createdDate: new Date('2026-06-05T10:00:00Z').toISOString(),
-      updatedDate: new Date('2026-06-05T10:00:00Z').toISOString()
-    },
-    {
-      id: 'tx-7',
-      userId: user1Id,
-      accountId: 'professional',
-      type: TransactionType.EXPENSE,
-      date: '2026-06-06',
-      categoryId: 'c-rohan-b-marketing',
-      walletId: 'w-rohan-axis',
-      amount: 30000,
-      notes: 'Google Ads & LinkedIn campaign spending',
-      status: TransactionStatus.ACTIVE,
-      createdDate: new Date('2026-06-06T18:20:00Z').toISOString(),
-      updatedDate: new Date('2026-06-06T18:20:00Z').toISOString()
-    }
-  ];
-
-  // Audit Logs
   const auditLogs: AuditLog[] = [
     {
       id: 'log-1',
-      timestamp: new Date('2026-05-15T12:00:00Z').toISOString(),
+      timestamp: new Date('2026-01-01T00:00:00Z').toISOString(),
       userId: adminId,
       userEmail: 'admin@ff.com',
-      action: 'USER_CREATED',
-      description: 'Created user Rohan Sharma (user1@ff.com)'
-    },
-    {
-      id: 'log-2',
-      timestamp: new Date('2026-06-01T09:00:00Z').toISOString(),
-      userId: adminId,
-      userEmail: 'admin@ff.com',
-      action: 'SYSTEM_SETTINGS_UPDATE',
-      description: 'Configured default system currency to INR'
+      action: 'SYSTEM_INIT',
+      description: 'System initialized with System Admin account'
     }
   ];
 
@@ -279,7 +103,8 @@ function generateSeedData(): DBStructure {
     categories,
     transactions,
     auditLogs,
-    settings: DEFAULT_SETTINGS
+    settings: DEFAULT_SETTINGS,
+    lastUpdated: new Date().toISOString()
   };
 }
 
@@ -340,6 +165,9 @@ export class DBManager {
   }
 
   static mergeDatabases(localDb: DBStructure, remoteDb: DBStructure): DBStructure {
+    const localTime = localDb?.lastUpdated ? new Date(localDb.lastUpdated).getTime() : 0;
+    const remoteTime = remoteDb?.lastUpdated ? new Date(remoteDb.lastUpdated).getTime() : 0;
+
     const merged: DBStructure = {
       users: [],
       wallets: [],
@@ -350,89 +178,30 @@ export class DBManager {
       lastUpdated: new Date().toISOString()
     };
 
-    // 1. Users - Union merge by ID (local changes take priority, remote users added if missing)
-    const userMap = new Map<string, User>();
-    if (remoteDb && Array.isArray(remoteDb.users)) {
-      remoteDb.users.forEach(u => { if (u && u.id) userMap.set(u.id, { ...u }); });
-    }
-    if (localDb && Array.isArray(localDb.users)) {
-      localDb.users.forEach(u => {
-        if (u && u.id) {
-          const existing = userMap.get(u.id);
-          if (!existing) {
-            userMap.set(u.id, { ...u });
-          } else {
-            userMap.set(u.id, { ...existing, ...u });
-          }
-        }
-      });
-    }
-    merged.users = Array.from(userMap.values());
+    if (remoteTime > localTime) {
+      // Remote is strictly newer (e.g. Google Sheets updated directly or from another client)
+      merged.users = Array.isArray(remoteDb?.users) ? [...remoteDb.users] : [];
+      merged.wallets = Array.isArray(remoteDb?.wallets) ? [...remoteDb.wallets] : [];
+      merged.categories = Array.isArray(remoteDb?.categories) ? [...remoteDb.categories] : [];
+      merged.transactions = Array.isArray(remoteDb?.transactions) ? [...remoteDb.transactions] : [];
+      merged.auditLogs = Array.isArray(remoteDb?.auditLogs) ? [...remoteDb.auditLogs] : [];
+    } else {
+      // Local is newer or timestamps equal (e.g. local deletion, reset, or user creation)
+      merged.users = Array.isArray(localDb?.users) ? [...localDb.users] : [];
+      merged.wallets = Array.isArray(localDb?.wallets) ? [...localDb.wallets] : [];
+      merged.categories = Array.isArray(localDb?.categories) ? [...localDb.categories] : [];
+      merged.transactions = Array.isArray(localDb?.transactions) ? [...localDb.transactions] : [];
 
-    // 2. Wallets - Union merge by ID
-    const walletMap = new Map<string, Wallet>();
-    if (remoteDb && Array.isArray(remoteDb.wallets)) {
-      remoteDb.wallets.forEach(w => { if (w && w.id) walletMap.set(w.id, { ...w }); });
+      // Merge audit logs by ID
+      const logMap = new Map<string, AuditLog>();
+      if (remoteDb && Array.isArray(remoteDb.auditLogs)) {
+        remoteDb.auditLogs.forEach(l => { if (l && l.id) logMap.set(l.id, l); });
+      }
+      if (localDb && Array.isArray(localDb.auditLogs)) {
+        localDb.auditLogs.forEach(l => { if (l && l.id) logMap.set(l.id, l); });
+      }
+      merged.auditLogs = Array.from(logMap.values());
     }
-    if (localDb && Array.isArray(localDb.wallets)) {
-      localDb.wallets.forEach(w => {
-        if (w && w.id) {
-          const existing = walletMap.get(w.id);
-          if (!existing) walletMap.set(w.id, { ...w });
-          else walletMap.set(w.id, { ...existing, ...w });
-        }
-      });
-    }
-    merged.wallets = Array.from(walletMap.values());
-
-    // 3. Categories - Union merge by ID
-    const categoryMap = new Map<string, Category>();
-    if (remoteDb && Array.isArray(remoteDb.categories)) {
-      remoteDb.categories.forEach(c => { if (c && c.id) categoryMap.set(c.id, { ...c }); });
-    }
-    if (localDb && Array.isArray(localDb.categories)) {
-      localDb.categories.forEach(c => {
-        if (c && c.id) {
-          const existing = categoryMap.get(c.id);
-          if (!existing) categoryMap.set(c.id, { ...c });
-          else categoryMap.set(c.id, { ...existing, ...c });
-        }
-      });
-    }
-    merged.categories = Array.from(categoryMap.values());
-
-    // 4. Transactions - Union merge by ID, compare updatedDate if both exist
-    const txMap = new Map<string, Transaction>();
-    if (remoteDb && Array.isArray(remoteDb.transactions)) {
-      remoteDb.transactions.forEach(t => { if (t && t.id) txMap.set(t.id, { ...t }); });
-    }
-    if (localDb && Array.isArray(localDb.transactions)) {
-      localDb.transactions.forEach(t => {
-        if (t && t.id) {
-          const existing = txMap.get(t.id);
-          if (!existing) {
-            txMap.set(t.id, { ...t });
-          } else {
-            const localTxTime = t.updatedDate ? new Date(t.updatedDate).getTime() : 0;
-            const remoteTxTime = existing.updatedDate ? new Date(existing.updatedDate).getTime() : 0;
-            if (localTxTime >= remoteTxTime) {
-              txMap.set(t.id, { ...existing, ...t });
-            }
-          }
-        }
-      });
-    }
-    merged.transactions = Array.from(txMap.values());
-
-    // 5. Audit Logs - Union merge by ID
-    const logMap = new Map<string, AuditLog>();
-    if (remoteDb && Array.isArray(remoteDb.auditLogs)) {
-      remoteDb.auditLogs.forEach(l => { if (l && l.id) logMap.set(l.id, { ...l }); });
-    }
-    if (localDb && Array.isArray(localDb.auditLogs)) {
-      localDb.auditLogs.forEach(l => { if (l && l.id) logMap.set(l.id, { ...l }); });
-    }
-    merged.auditLogs = Array.from(logMap.values());
 
     return merged;
   }
